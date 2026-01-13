@@ -19,7 +19,7 @@ None
 - [x] **Phase 3: Family Groups** - Group creation, member management, shared access
 - [x] **Phase 4: Vehicle Management** - Vehicle profiles with photos and specifications
 - [x] **Phase 5: Fillup Entry** - Core fillup logging with location auto-detection
-- [ ] **Phase 6: History & Analytics** - Fillup history, MPG calculations, trends
+- [x] **Phase 6: History & Analytics** - Fillup history, MPG calculations, trends
 - [ ] **Phase 7: PWA Polish** - Offline capability, install prompts, mobile optimization
 
 ## Phase Details
@@ -88,9 +88,9 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 06-01: Per-vehicle fillup history views
-- [ ] 06-02: MPG calculations and statistics
-- [ ] 06-03: Dashboard with trends and recent activity
+- [x] 06-01: Per-vehicle fillup history views
+- [x] 06-02: MPG calculations and statistics
+- [x] 06-03: Dashboard with trends and recent activity
 
 ### Phase 7: PWA Polish
 **Goal**: Full PWA with offline capability and optimized mobile experience
@@ -116,5 +116,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Family Groups | 3/3 | Complete | 2026-01-13 |
 | 4. Vehicle Management | 3/3 | Complete | 2026-01-13 |
 | 5. Fillup Entry | 3/3 | Complete | 2026-01-13 |
-| 6. History & Analytics | 0/3 | Not started | - |
+| 6. History & Analytics | 3/3 | Complete | 2026-01-13 |
 | 7. PWA Polish | 0/3 | Not started | - |
