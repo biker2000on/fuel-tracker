@@ -45,6 +45,10 @@ function VehicleFillupsContent() {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -80,13 +84,19 @@ function VehicleFillupsContent() {
     }
   }
 
-  async function fetchFillups(cursor?: string) {
+  async function fetchFillups(cursor?: string, filterStartDate?: string, filterEndDate?: string) {
     try {
-      const params = new URLSearchParams({ vehicleId, pageSize: '20' })
+      const apiParams = new URLSearchParams({ vehicleId, pageSize: '20' })
       if (cursor) {
-        params.append('cursor', cursor)
+        apiParams.append('cursor', cursor)
       }
-      const response = await fetch(`/api/fillups?${params.toString()}`)
+      if (filterStartDate) {
+        apiParams.append('startDate', filterStartDate)
+      }
+      if (filterEndDate) {
+        apiParams.append('endDate', filterEndDate)
+      }
+      const response = await fetch(`/api/fillups?${apiParams.toString()}`)
       if (response.ok) {
         const data = await response.json()
         if (cursor) {
@@ -110,7 +120,69 @@ function VehicleFillupsContent() {
   async function loadMore() {
     if (!nextCursor || isLoadingMore) return
     setIsLoadingMore(true)
-    await fetchFillups(nextCursor)
+    await fetchFillups(nextCursor, startDate, endDate)
+  }
+
+  function applyDateFilter(start: string, end: string, filterName: string | null) {
+    setStartDate(start)
+    setEndDate(end)
+    setActiveFilter(filterName)
+    setFillups([])
+    setNextCursor(null)
+    setIsLoading(true)
+    fetchFillups(undefined, start, end)
+  }
+
+  function clearFilter() {
+    applyDateFilter('', '', null)
+  }
+
+  function applyQuickFilter(filterType: 'last30' | 'last90' | 'thisYear' | 'all') {
+    const today = new Date()
+    let start = ''
+    let end = ''
+    let filterName: string | null = null
+
+    switch (filterType) {
+      case 'last30': {
+        const thirtyDaysAgo = new Date(today)
+        thirtyDaysAgo.setDate(today.getDate() - 30)
+        start = thirtyDaysAgo.toISOString().split('T')[0]
+        end = today.toISOString().split('T')[0]
+        filterName = 'Last 30 days'
+        break
+      }
+      case 'last90': {
+        const ninetyDaysAgo = new Date(today)
+        ninetyDaysAgo.setDate(today.getDate() - 90)
+        start = ninetyDaysAgo.toISOString().split('T')[0]
+        end = today.toISOString().split('T')[0]
+        filterName = 'Last 90 days'
+        break
+      }
+      case 'thisYear': {
+        start = `${today.getFullYear()}-01-01`
+        end = today.toISOString().split('T')[0]
+        filterName = 'This year'
+        break
+      }
+      case 'all':
+        filterName = null
+        break
+    }
+
+    applyDateFilter(start, end, filterName)
+  }
+
+  function handleCustomDateFilter() {
+    if (startDate || endDate) {
+      const filterName = startDate && endDate
+        ? `${formatDate(startDate)} - ${formatDate(endDate)}`
+        : startDate
+          ? `From ${formatDate(startDate)}`
+          : `Until ${formatDate(endDate)}`
+      applyDateFilter(startDate, endDate, filterName)
+    }
   }
 
   async function handleDelete(fillupId: string) {
@@ -206,14 +278,118 @@ function VehicleFillupsContent() {
         )}
 
         {/* Add Fillup Button */}
-        <div className="mb-6">
+        <div className="mb-6 flex items-center gap-4">
           <Link
             href={`/fillups/new?vehicleId=${vehicleId}`}
             className="inline-block py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition-colors"
           >
             Add Fillup
           </Link>
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className="py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md transition-colors"
+          >
+            {showFilters ? 'Hide Filters' : 'Filter'}
+          </button>
         </div>
+
+        {/* Active Filter Badge */}
+        {activeFilter && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Filtered:</span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-sm rounded-full">
+              {activeFilter}
+              <button
+                type="button"
+                onClick={clearFilter}
+                className="ml-1 hover:text-blue-900 dark:hover:text-blue-100"
+                aria-label="Clear filter"
+              >
+                x
+              </button>
+            </span>
+          </div>
+        )}
+
+        {/* Filter Section */}
+        {showFilters && (
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            {/* Quick Filters */}
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quick Filters</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyQuickFilter('last30')}
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors"
+                >
+                  Last 30 days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyQuickFilter('last90')}
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors"
+                >
+                  Last 90 days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyQuickFilter('thisYear')}
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors"
+                >
+                  This year
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyQuickFilter('all')}
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors"
+                >
+                  All time
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Date Range */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Custom Range</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label htmlFor="startDate" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="endDate" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCustomDateFilter}
+                  disabled={!startDate && !endDate}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Summary */}
         {fillups.length > 0 && (
@@ -248,15 +424,32 @@ function VehicleFillupsContent() {
         {/* Fillup List */}
         {fillups.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              No fillups yet. Log your first fillup!
-            </p>
-            <Link
-              href={`/fillups/new?vehicleId=${vehicleId}`}
-              className="text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
-            >
-              Log Fillup
-            </Link>
+            {activeFilter ? (
+              <>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  No fillups found for this date range.
+                </p>
+                <button
+                  type="button"
+                  onClick={clearFilter}
+                  className="text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
+                >
+                  Clear filter
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  No fillups yet. Log your first fillup!
+                </p>
+                <Link
+                  href={`/fillups/new?vehicleId=${vehicleId}`}
+                  className="text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
+                >
+                  Log Fillup
+                </Link>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

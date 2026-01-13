@@ -17,6 +17,8 @@ export async function GET(request: Request) {
   const cursor = searchParams.get('cursor')
   const pageSizeParam = searchParams.get('pageSize')
   const limitParam = searchParams.get('limit')
+  const startDateParam = searchParams.get('startDate')
+  const endDateParam = searchParams.get('endDate')
 
   // Prefer pageSize over limit for new cursor-based pagination
   const pageSize = pageSizeParam
@@ -30,6 +32,32 @@ export async function GET(request: Request) {
       { error: 'pageSize must be a number between 1 and 100' },
       { status: 400 }
     )
+  }
+
+  // Validate date range parameters
+  let startDate: Date | null = null
+  let endDate: Date | null = null
+
+  if (startDateParam) {
+    startDate = new Date(startDateParam)
+    if (isNaN(startDate.getTime())) {
+      return NextResponse.json(
+        { error: 'startDate must be a valid ISO date string' },
+        { status: 400 }
+      )
+    }
+  }
+
+  if (endDateParam) {
+    endDate = new Date(endDateParam)
+    if (isNaN(endDate.getTime())) {
+      return NextResponse.json(
+        { error: 'endDate must be a valid ISO date string' },
+        { status: 400 }
+      )
+    }
+    // Set to end of day for inclusive filtering
+    endDate.setHours(23, 59, 59, 999)
   }
 
   // Get all groups user is a member of
@@ -61,6 +89,7 @@ export async function GET(request: Request) {
   interface WhereClause {
     vehicleId: { in: string[] } | string
     id?: { lt: string }
+    date?: { gte?: Date; lte?: Date }
   }
 
   const whereClause: WhereClause = {
@@ -76,6 +105,17 @@ export async function GET(request: Request) {
       )
     }
     whereClause.vehicleId = vehicleId
+  }
+
+  // Apply date range filter
+  if (startDate || endDate) {
+    whereClause.date = {}
+    if (startDate) {
+      whereClause.date.gte = startDate
+    }
+    if (endDate) {
+      whereClause.date.lte = endDate
+    }
   }
 
   // Apply cursor for pagination (cursor is the ID to start after)
