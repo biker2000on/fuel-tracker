@@ -30,6 +30,25 @@ model Group {
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
   members    Membership[]
+  vehicles   Vehicle[]
+}
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  name      String   // User-friendly name like "Dad's Truck"
+  year      Int      // 4-digit year
+  make      String   // e.g., "Toyota"
+  model     String   // e.g., "Camry"
+  tankSize  Float?   // Gallons, optional
+  fuelType  String   @default("regular") // regular, premium, diesel, e85
+  photoUrl  String?  // Optional, for photo upload in Plan 02
+  groupId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
 }
 
 model Membership {
