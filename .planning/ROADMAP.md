@@ -1,0 +1,120 @@
+# Roadmap: Fuel Tracker
+
+## Overview
+
+Build a mobile-first PWA for quick fuel tracking at the pump. Start with foundation and auth, add family group sharing for household vehicles, then implement the core fillup entry flow with location detection. Finish with history views and PWA polish for offline capability.
+
+## Domain Expertise
+
+None
+
+## Phases
+
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+- [ ] **Phase 1: Foundation** - Project setup with Next.js, Prisma, PostgreSQL, Docker
+- [ ] **Phase 2: Authentication** - User registration, login, session management
+- [ ] **Phase 3: Family Groups** - Group creation, member management, shared access
+- [ ] **Phase 4: Vehicle Management** - Vehicle profiles with photos and specifications
+- [ ] **Phase 5: Fillup Entry** - Core fillup logging with location auto-detection
+- [ ] **Phase 6: History & Analytics** - Fillup history, MPG calculations, trends
+- [ ] **Phase 7: PWA Polish** - Offline capability, install prompts, mobile optimization
+
+## Phase Details
+
+### Phase 1: Foundation
+**Goal**: Working Next.js app with Prisma, PostgreSQL, and Docker deployment ready
+**Depends on**: Nothing (first phase)
+**Research**: Unlikely (established patterns)
+**Plans**: TBD
+
+Plans:
+- [ ] 01-01: Next.js project with App Router and Tailwind
+- [ ] 01-02: Prisma setup with PostgreSQL and base schema
+- [ ] 01-03: Docker configuration for self-hosted deployment
+
+### Phase 2: Authentication
+**Goal**: Users can register, login, and maintain sessions
+**Depends on**: Phase 1
+**Research**: Likely (auth library choice)
+**Research topics**: NextAuth.js vs custom auth, session strategy, credential storage
+**Plans**: TBD
+
+Plans:
+- [ ] 02-01: Auth library setup and user model
+- [ ] 02-02: Registration and login flows
+- [ ] 02-03: Protected routes and session handling
+
+### Phase 3: Family Groups
+**Goal**: Users can create/join family groups and share vehicles
+**Depends on**: Phase 2
+**Research**: Unlikely (internal patterns)
+**Plans**: TBD
+
+Plans:
+- [ ] 03-01: Group model and membership relationships
+- [ ] 03-02: Group creation and invite system
+- [ ] 03-03: Group-based access control for vehicles
+
+### Phase 4: Vehicle Management
+**Goal**: Users can add vehicles with full profiles and photos
+**Depends on**: Phase 3
+**Research**: Unlikely (standard CRUD)
+**Plans**: TBD
+
+Plans:
+- [ ] 04-01: Vehicle model and CRUD operations
+- [ ] 04-02: Vehicle photo upload and storage
+- [ ] 04-03: Vehicle list and detail views
+
+### Phase 5: Fillup Entry
+**Goal**: Quick fillup logging with automatic location detection
+**Depends on**: Phase 4
+**Research**: Likely (geolocation APIs)
+**Research topics**: Browser Geolocation API, reverse geocoding service options, offline location handling
+**Plans**: TBD
+
+Plans:
+- [ ] 05-01: Fillup model and entry form
+- [ ] 05-02: Location auto-detection and geocoding
+- [ ] 05-03: Quick-entry UX optimization
+
+### Phase 6: History & Analytics
+**Goal**: View fillup history and track fuel economy trends
+**Depends on**: Phase 5
+**Research**: Unlikely (internal aggregation)
+**Plans**: TBD
+
+Plans:
+- [ ] 06-01: Per-vehicle fillup history views
+- [ ] 06-02: MPG calculations and statistics
+- [ ] 06-03: Dashboard with trends and recent activity
+
+### Phase 7: PWA Polish
+**Goal**: Full PWA with offline capability and optimized mobile experience
+**Depends on**: Phase 6
+**Research**: Likely (service worker patterns)
+**Research topics**: next-pwa configuration, service worker caching strategies, offline form submission
+**Plans**: TBD
+
+Plans:
+- [ ] 07-01: PWA manifest and service worker setup
+- [ ] 07-02: Offline capability and sync
+- [ ] 07-03: Mobile UI polish and install prompts
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Foundation | 0/3 | Not started | - |
+| 2. Authentication | 0/3 | Not started | - |
+| 3. Family Groups | 0/3 | Not started | - |
+| 4. Vehicle Management | 0/3 | Not started | - |
+| 5. Fillup Entry | 0/3 | Not started | - |
+| 6. History & Analytics | 0/3 | Not started | - |
+| 7. PWA Polish | 0/3 | Not started | - |
