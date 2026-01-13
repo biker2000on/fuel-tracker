@@ -14,12 +14,20 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const vehicleId = searchParams.get('vehicleId')
+  const cursor = searchParams.get('cursor')
+  const pageSizeParam = searchParams.get('pageSize')
   const limitParam = searchParams.get('limit')
-  const limit = limitParam ? parseInt(limitParam, 10) : 50
 
-  if (isNaN(limit) || limit < 1 || limit > 500) {
+  // Prefer pageSize over limit for new cursor-based pagination
+  const pageSize = pageSizeParam
+    ? parseInt(pageSizeParam, 10)
+    : limitParam
+      ? parseInt(limitParam, 10)
+      : 20
+
+  if (isNaN(pageSize) || pageSize < 1 || pageSize > 100) {
     return NextResponse.json(
-      { error: 'Limit must be a number between 1 and 500' },
+      { error: 'pageSize must be a number between 1 and 100' },
       { status: 400 }
     )
   }
@@ -31,7 +39,7 @@ export async function GET(request: Request) {
   })
 
   if (memberships.length === 0) {
-    return NextResponse.json({ fillups: [] })
+    return NextResponse.json({ fillups: [], nextCursor: null, hasMore: false })
   }
 
   const groupIds = memberships.map((m) => m.groupId)
@@ -43,14 +51,19 @@ export async function GET(request: Request) {
   })
 
   if (vehicles.length === 0) {
-    return NextResponse.json({ fillups: [] })
+    return NextResponse.json({ fillups: [], nextCursor: null, hasMore: false })
   }
 
   const vehicleIds = vehicles.map((v) => v.id)
   const vehicleNameMap = new Map(vehicles.map((v) => [v.id, v.name]))
 
   // Build where clause
-  const whereClause: { vehicleId: { in: string[] } | string } = {
+  interface WhereClause {
+    vehicleId: { in: string[] } | string
+    id?: { lt: string }
+  }
+
+  const whereClause: WhereClause = {
     vehicleId: { in: vehicleIds }
   }
 
@@ -65,13 +78,24 @@ export async function GET(request: Request) {
     whereClause.vehicleId = vehicleId
   }
 
+  // Apply cursor for pagination (cursor is the ID to start after)
+  if (cursor) {
+    whereClause.id = { lt: cursor }
+  }
+
+  // Fetch one more than pageSize to determine if there are more results
   const fillups = await prisma.fillup.findMany({
     where: whereClause,
-    orderBy: { date: 'desc' },
-    take: limit
+    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+    take: pageSize + 1
   })
 
-  const fillupsWithVehicleName = fillups.map((fillup) => ({
+  // Determine if there are more results
+  const hasMore = fillups.length > pageSize
+  const results = hasMore ? fillups.slice(0, pageSize) : fillups
+  const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].id : null
+
+  const fillupsWithVehicleName = results.map((fillup) => ({
     id: fillup.id,
     date: fillup.date.toISOString(),
     gallons: fillup.gallons,
@@ -93,7 +117,7 @@ export async function GET(request: Request) {
     updatedAt: fillup.updatedAt.toISOString()
   }))
 
-  return NextResponse.json({ fillups: fillupsWithVehicleName })
+  return NextResponse.json({ fillups: fillupsWithVehicleName, nextCursor, hasMore })
 }
 
 export async function POST(request: Request) {

@@ -42,6 +42,9 @@ function VehicleFillupsContent() {
   const [expandedFillupId, setExpandedFillupId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState(showSuccess ? 'Fillup logged successfully!' : '')
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -77,18 +80,37 @@ function VehicleFillupsContent() {
     }
   }
 
-  async function fetchFillups() {
+  async function fetchFillups(cursor?: string) {
     try {
-      const response = await fetch(`/api/fillups?vehicleId=${vehicleId}&limit=50`)
+      const params = new URLSearchParams({ vehicleId, pageSize: '20' })
+      if (cursor) {
+        params.append('cursor', cursor)
+      }
+      const response = await fetch(`/api/fillups?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
-        setFillups(data.fillups)
+        if (cursor) {
+          // Append to existing list when loading more
+          setFillups(prev => [...prev, ...data.fillups])
+        } else {
+          // Replace list on initial load
+          setFillups(data.fillups)
+        }
+        setNextCursor(data.nextCursor)
+        setHasMore(data.hasMore)
       }
     } catch {
       setError('Failed to load fillups')
     } finally {
       setIsLoading(false)
+      setIsLoadingMore(false)
     }
+  }
+
+  async function loadMore() {
+    if (!nextCursor || isLoadingMore) return
+    setIsLoadingMore(true)
+    await fetchFillups(nextCursor)
   }
 
   async function handleDelete(fillupId: string) {
@@ -326,6 +348,20 @@ function VehicleFillupsContent() {
                 </div>
               )
             })}
+
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="py-2 px-6 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md transition-colors disabled:opacity-50"
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load More'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
