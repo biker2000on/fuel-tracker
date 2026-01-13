@@ -119,7 +119,29 @@ export default function AuthStatus() {
   }
 
   if (!session?.user) {
-    return null
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 w-full max-w-sm">
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Sign in to start tracking your fuel consumption
+          </p>
+          <div className="space-y-3">
+            <Link
+              href="/login"
+              className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-center font-semibold rounded-lg shadow-sm transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/register"
+              className="block w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-center font-medium rounded-lg transition-colors"
+            >
+              Create Account
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const displayedVehicles = vehicles.slice(0, 4)
