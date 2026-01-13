@@ -31,6 +31,32 @@ interface Fillup {
   state: string | null
 }
 
+interface VehicleStats {
+  overview: {
+    totalFillups: number
+    totalGallons: number
+    totalCost: number
+    totalMiles: number
+    firstFillup: string | null
+    lastFillup: string | null
+  }
+  mpg: {
+    average: number | null
+    best: number | null
+    worst: number | null
+    recent: number | null
+  }
+  costs: {
+    averagePricePerGallon: number | null
+    averageCostPerFillup: number | null
+    costPerMile: number | null
+  }
+  frequency: {
+    averageDaysBetweenFillups: number | null
+    averageMilesBetweenFillups: number | null
+  }
+}
+
 const FUEL_TYPE_LABELS: Record<string, string> = {
   regular: 'Regular',
   premium: 'Premium',
@@ -45,8 +71,10 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [fillups, setFillups] = useState<Fillup[]>([])
   const [totalFillupCount, setTotalFillupCount] = useState(0)
+  const [stats, setStats] = useState<VehicleStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingFillups, setIsLoadingFillups] = useState(true)
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -60,6 +88,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
     if (status === 'authenticated') {
       fetchVehicle()
       fetchFillups()
+      fetchStats()
     }
   }, [status, router, id])
 
@@ -104,6 +133,29 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setIsLoadingFillups(false)
     }
+  }
+
+  async function fetchStats() {
+    try {
+      const response = await fetch(`/api/vehicles/${id}/stats`)
+      if (response.ok) {
+        const data = await response.json()
+        setStats(data)
+      }
+    } catch {
+      // Silently fail - stats are supplementary
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }
+
+  function getMpgColor(mpg: number, best: number | null, worst: number | null): string {
+    if (!best || !worst || best === worst) return 'text-gray-900 dark:text-white'
+    const range = best - worst
+    const position = (mpg - worst) / range
+    if (position >= 0.7) return 'text-green-600 dark:text-green-400'
+    if (position <= 0.3) return 'text-red-600 dark:text-red-400'
+    return 'text-yellow-600 dark:text-yellow-400'
   }
 
   async function handleDelete() {
@@ -289,6 +341,133 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Statistics Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Statistics
+          </h2>
+
+          {isLoadingStats ? (
+            <div className="space-y-4">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              </div>
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              </div>
+            </div>
+          ) : !stats || stats.overview.totalFillups === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-gray-500 dark:text-gray-400">
+                No fillup data yet - log your first fillup to see statistics
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Fuel Economy Card */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                  Fuel Economy
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className={`text-2xl font-bold ${stats.mpg.average ? getMpgColor(stats.mpg.average, stats.mpg.best, stats.mpg.worst) : 'text-gray-400'}`}>
+                      {stats.mpg.average ? `${stats.mpg.average} MPG` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Average</p>
+                  </div>
+                  <div>
+                    <p className={`text-2xl font-bold ${stats.mpg.recent ? getMpgColor(stats.mpg.recent, stats.mpg.best, stats.mpg.worst) : 'text-gray-400'}`}>
+                      {stats.mpg.recent ? `${stats.mpg.recent} MPG` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Recent (last 5)</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                      {stats.mpg.best ? `${stats.mpg.best} MPG` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Best</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-red-600 dark:text-red-400">
+                      {stats.mpg.worst ? `${stats.mpg.worst} MPG` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Worst</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Costs Card */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                  Costs
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      ${stats.overview.totalCost.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Total Spent</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {stats.costs.costPerMile ? `$${stats.costs.costPerMile.toFixed(2)}` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Per Mile</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                      {stats.costs.averagePricePerGallon ? `$${stats.costs.averagePricePerGallon.toFixed(3)}` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Avg $/Gallon</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                      {stats.costs.averageCostPerFillup ? `$${stats.costs.averageCostPerFillup.toFixed(2)}` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Avg Fillup</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity Card */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+                  Activity
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {stats.overview.totalFillups}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Total Fillups</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {stats.overview.totalMiles.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Miles Tracked</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                      {stats.frequency.averageDaysBetweenFillups ? `${stats.frequency.averageDaysBetweenFillups} days` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Avg Between Fillups</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                      {stats.frequency.averageMilesBetweenFillups ? `${stats.frequency.averageMilesBetweenFillups.toLocaleString()} mi` : '--'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Avg Miles/Fillup</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Fillups Section */}
