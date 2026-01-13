@@ -21,6 +21,7 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   memberships  Membership[]
+  fillups      Fillup[]
 }
 
 model Group {
@@ -46,7 +47,8 @@ model Vehicle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group   Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fillups Fillup[]
 
   @@index([groupId])
 }
@@ -64,4 +66,32 @@ model Membership {
   @@unique([userId, groupId]) // User can only be in a group once
   @@index([userId])
   @@index([groupId])
+}
+
+model Fillup {
+  id             String   @id @default(cuid())
+  date           DateTime // When fillup occurred
+  gallons        Float    // Amount of fuel
+  pricePerGallon Float    // Price per gallon
+  totalCost      Float    // Computed: gallons * pricePerGallon
+  odometer       Int      // Current odometer reading
+  mpg            Float?   // Calculated MPG since last fillup, null for first
+  isFull         Boolean  @default(true) // Full tank or partial
+  notes          String?  // Optional user notes
+  latitude       Float?   // GPS latitude
+  longitude      Float?   // GPS longitude
+  city           String?  // Reverse geocoded city
+  state          String?  // Reverse geocoded state/region
+  country        String?  // Reverse geocoded country
+  vehicleId      String
+  userId         String   // User who logged this fillup
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([userId])
+  @@index([date])
 }
