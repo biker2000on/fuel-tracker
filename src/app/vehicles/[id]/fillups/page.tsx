@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
@@ -27,7 +27,7 @@ interface Vehicle {
   model: string
 }
 
-export default function VehicleFillupsPage() {
+function VehicleFillupsContent() {
   const { status } = useSession()
   const router = useRouter()
   const params = useParams()
@@ -330,5 +330,21 @@ export default function VehicleFillupsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <div className="text-gray-500">Loading...</div>
+    </div>
+  )
+}
+
+export default function VehicleFillupsPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <VehicleFillupsContent />
+    </Suspense>
   )
 }
