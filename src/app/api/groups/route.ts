@@ -29,7 +29,9 @@ export async function GET() {
     name: membership.group.name,
     role: membership.role,
     memberCount: membership.group._count.members,
-    joinedAt: membership.joinedAt.toISOString()
+    joinedAt: membership.joinedAt.toISOString(),
+    // Include invite code only for owners
+    ...(membership.role === 'owner' && { inviteCode: membership.group.inviteCode })
   }))
 
   return NextResponse.json({ groups })
