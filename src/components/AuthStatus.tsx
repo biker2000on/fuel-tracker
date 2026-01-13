@@ -22,17 +22,31 @@ interface Vehicle {
   groupName: string
 }
 
+interface Fillup {
+  id: string
+  date: string
+  gallons: number
+  totalCost: number
+  vehicleId: string
+  vehicleName: string | null
+  city: string | null
+  state: string | null
+}
+
 export default function AuthStatus() {
   const { data: session, status } = useSession()
   const [groups, setGroups] = useState<Group[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [fillups, setFillups] = useState<Fillup[]>([])
   const [isLoadingGroups, setIsLoadingGroups] = useState(false)
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false)
+  const [isLoadingFillups, setIsLoadingFillups] = useState(false)
 
   useEffect(() => {
     if (session?.user) {
       fetchGroups()
       fetchVehicles()
+      fetchFillups()
     }
   }, [session])
 
@@ -66,6 +80,36 @@ export default function AuthStatus() {
     }
   }
 
+  async function fetchFillups() {
+    setIsLoadingFillups(true)
+    try {
+      const response = await fetch('/api/fillups?limit=5')
+      if (response.ok) {
+        const data = await response.json()
+        setFillups(data.fillups)
+      }
+    } catch {
+      // Silently fail - fillups are not critical for the home page
+    } finally {
+      setIsLoadingFillups(false)
+    }
+  }
+
+  function formatDate(dateString: string): string {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  function formatLocation(city: string | null, state: string | null): string | null {
+    if (city && state) return `${city}, ${state}`
+    if (city) return city
+    if (state) return state
+    return null
+  }
+
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center p-4">
@@ -91,6 +135,84 @@ export default function AuthStatus() {
           {session.user.email}
         </p>
       </div>
+
+      {/* Primary Action - Log Fillup */}
+      {vehicles.length > 0 && (
+        <div className="mt-6">
+          <Link
+            href="/fillups/new"
+            className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-center font-semibold rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Log Fillup
+          </Link>
+        </div>
+      )}
+
+      {/* Recent Fillups Section */}
+      {vehicles.length > 0 && (
+        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+              Recent Fillups
+            </h2>
+            {fillups.length > 0 && (
+              <Link
+                href="/vehicles"
+                className="text-xs text-blue-600 hover:text-blue-500 dark:text-blue-400"
+              >
+                View All
+              </Link>
+            )}
+          </div>
+
+          {isLoadingFillups ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading fillups...</p>
+          ) : fillups.length === 0 ? (
+            <div className="text-center py-3">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                No fillups yet
+              </p>
+              <Link
+                href="/fillups/new"
+                className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
+              >
+                Log your first fillup
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {fillups.map((fillup) => {
+                const location = formatLocation(fillup.city, fillup.state)
+                return (
+                  <Link
+                    key={fillup.id}
+                    href={`/vehicles/${fillup.vehicleId}/fillups`}
+                    className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-800 dark:text-gray-200 font-medium truncate">
+                        {fillup.vehicleName || 'Vehicle'}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatDate(fillup.date)}
+                        {location && ` - ${location}`}
+                      </p>
+                    </div>
+                    <div className="text-right ml-2 flex-shrink-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {fillup.gallons.toFixed(1)} gal
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        ${fillup.totalCost.toFixed(2)}
+                      </p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Groups Section */}
       <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">

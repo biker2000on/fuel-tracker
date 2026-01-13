@@ -21,6 +21,16 @@ interface Vehicle {
   updatedAt: string
 }
 
+interface Fillup {
+  id: string
+  date: string
+  gallons: number
+  totalCost: number
+  mpg: number | null
+  city: string | null
+  state: string | null
+}
+
 const FUEL_TYPE_LABELS: Record<string, string> = {
   regular: 'Regular',
   premium: 'Premium',
@@ -33,7 +43,10 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   const { status } = useSession()
   const router = useRouter()
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [fillups, setFillups] = useState<Fillup[]>([])
+  const [totalFillupCount, setTotalFillupCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingFillups, setIsLoadingFillups] = useState(true)
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -46,6 +59,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
 
     if (status === 'authenticated') {
       fetchVehicle()
+      fetchFillups()
     }
   }, [status, router, id])
 
@@ -72,6 +86,26 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  async function fetchFillups() {
+    try {
+      const response = await fetch(`/api/fillups?vehicleId=${id}&limit=3`)
+      if (response.ok) {
+        const data = await response.json()
+        setFillups(data.fillups)
+        // Also fetch full count
+        const countResponse = await fetch(`/api/fillups?vehicleId=${id}&limit=500`)
+        if (countResponse.ok) {
+          const countData = await countResponse.json()
+          setTotalFillupCount(countData.fillups.length)
+        }
+      }
+    } catch {
+      // Silently fail - fillups are supplementary
+    } finally {
+      setIsLoadingFillups(false)
+    }
+  }
+
   async function handleDelete() {
     setIsDeleting(true)
     try {
@@ -93,6 +127,28 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
       setIsDeleting(false)
     }
   }
+
+  function formatDate(dateString: string): string {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+  }
+
+  function formatLocation(city: string | null, state: string | null): string | null {
+    if (city && state) return `${city}, ${state}`
+    if (city) return city
+    if (state) return state
+    return null
+  }
+
+  // Calculate stats
+  const fillupsWithMpg = fillups.filter(f => f.mpg !== null)
+  const averageMpg = fillupsWithMpg.length > 0
+    ? fillupsWithMpg.reduce((sum, f) => sum + (f.mpg || 0), 0) / fillupsWithMpg.length
+    : null
 
   if (status === 'loading' || isLoading) {
     return (
@@ -182,6 +238,16 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
               {vehicle.year} {vehicle.make} {vehicle.model}
             </p>
 
+            {/* Log Fillup - Primary Action */}
+            <div className="mt-4">
+              <Link
+                href={`/fillups/new?vehicleId=${id}`}
+                className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-center font-semibold rounded-lg shadow-sm transition-colors"
+              >
+                Log Fillup
+              </Link>
+            </div>
+
             <div className="mt-6 space-y-4">
               <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                 <span className="text-sm text-gray-500 dark:text-gray-400">Group</span>
@@ -211,7 +277,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
             <div className="mt-6 flex gap-3">
               <Link
                 href={`/vehicles/${id}/edit`}
-                className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm text-center transition-colors"
+                className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md text-center transition-colors"
               >
                 Edit
               </Link>
@@ -225,6 +291,90 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
+        {/* Fillups Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Fillups
+            </h2>
+            <Link
+              href={`/vehicles/${id}/fillups`}
+              className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
+            >
+              View All
+            </Link>
+          </div>
+
+          {/* Stats */}
+          {totalFillupCount > 0 && (
+            <div className="flex gap-6 mb-4 pb-4 border-b border-gray-100 dark:border-gray-700">
+              <div>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {totalFillupCount}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Total
+                </p>
+              </div>
+              {averageMpg && (
+                <div>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {averageMpg.toFixed(1)}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Avg MPG
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Recent Fillups */}
+          {isLoadingFillups ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading fillups...</p>
+          ) : fillups.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-gray-500 dark:text-gray-400 mb-2">
+                No fillups yet
+              </p>
+              <Link
+                href={`/fillups/new?vehicleId=${id}`}
+                className="text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
+              >
+                Log your first fillup
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {fillups.map((fillup) => {
+                const location = formatLocation(fillup.city, fillup.state)
+                return (
+                  <Link
+                    key={fillup.id}
+                    href={`/vehicles/${id}/fillups`}
+                    className="flex items-center justify-between py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded -mx-2 px-2 transition-colors"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {formatDate(fillup.date)}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {fillup.gallons.toFixed(1)} gal - ${fillup.totalCost.toFixed(2)}
+                        {location && ` - ${location}`}
+                      </p>
+                    </div>
+                    {fillup.mpg && (
+                      <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                        {fillup.mpg.toFixed(1)} MPG
+                      </p>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -233,7 +383,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
                 Delete Vehicle?
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                Are you sure you want to delete &quot;{vehicle.name}&quot;? This action cannot be undone.
+                Are you sure you want to delete &quot;{vehicle.name}&quot;? This will also delete all {totalFillupCount} fillup{totalFillupCount !== 1 ? 's' : ''}. This action cannot be undone.
               </p>
               <div className="flex gap-3">
                 <button
