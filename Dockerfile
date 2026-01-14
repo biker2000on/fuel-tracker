@@ -15,6 +15,12 @@ RUN npm run build
 
 # Runner stage
 FROM node:20-alpine AS runner
+
+# Labels for GitHub Container Registry
+LABEL org.opencontainers.image.source="https://github.com/biker2000on/fuel-tracker"
+LABEL org.opencontainers.image.description="Mobile-first PWA for quick fuel tracking at the pump"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 ENV NODE_ENV=production
 
