@@ -16,7 +16,7 @@ RUN npm run build
 # Prisma CLI stage - install only what's needed for db push
 FROM node:20-alpine AS prisma-cli
 WORKDIR /app
-RUN npm install prisma@latest --save-prod
+RUN npm install prisma@latest dotenv --save-prod
 
 # Runner stage
 FROM node:20-alpine AS runner
