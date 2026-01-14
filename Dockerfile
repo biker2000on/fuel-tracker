@@ -42,6 +42,7 @@ COPY --from=prisma-cli /app/node_modules ./node_modules
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 # Startup script: ensure database schema is applied, then start the server
 CMD ["sh", "-c", "npx prisma db push && node server.js"]
