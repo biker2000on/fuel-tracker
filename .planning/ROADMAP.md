@@ -21,7 +21,7 @@ None
 - [x] **Phase 5: Fillup Entry** - Core fillup logging with location auto-detection
 - [x] **Phase 6: History & Analytics** - Fillup history, MPG calculations, trends
 - [x] **Phase 7: PWA Polish** - Offline capability, install prompts, mobile optimization
-- [ ] **Phase 8: CSV Import** - Import historical fillup records from CSV files
+- [x] **Phase 8: CSV Import** - Import historical fillup records from CSV files
 
 ## Phase Details
 
@@ -113,7 +113,7 @@ Plans:
 
 Plans:
 - [x] 08-01: CSV import API with validation and bulk create
-- [ ] 08-02: CSV import UI with preview and vehicle selection
+- [x] 08-02: CSV import UI with preview and vehicle selection
 
 **Context:**
 Users have handwritten fuel records (paper logs, receipts) that can be converted to CSV via external AI tools (scanning PDFs/images). This phase provides the import mechanism for that CSV data.
@@ -132,4 +132,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Fillup Entry | 3/3 | Complete | 2026-01-13 |
 | 6. History & Analytics | 3/3 | Complete | 2026-01-13 |
 | 7. PWA Polish | 3/3 | Complete | 2026-01-14 |
-| 8. CSV Import | 1/2 | In progress | - |
+| 8. CSV Import | 2/2 | Complete | 2026-01-14 |
