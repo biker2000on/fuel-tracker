@@ -112,7 +112,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 08-01: CSV import API with validation and bulk create
+- [x] 08-01: CSV import API with validation and bulk create
 - [ ] 08-02: CSV import UI with preview and vehicle selection
 
 **Context:**
@@ -132,4 +132,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Fillup Entry | 3/3 | Complete | 2026-01-13 |
 | 6. History & Analytics | 3/3 | Complete | 2026-01-13 |
 | 7. PWA Polish | 3/3 | Complete | 2026-01-14 |
-| 8. CSV Import | 0/2 | Not started | - |
+| 8. CSV Import | 1/2 | In progress | - |
