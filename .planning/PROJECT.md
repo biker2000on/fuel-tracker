@@ -12,18 +12,19 @@ Quick fillup entry — fast, frictionless logging from the phone at the pump. If
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ User authentication with account creation and login — v1.0
+- ✓ Family groups for sharing cars between users — v1.0
+- ✓ Vehicle profiles with year/make/model, photo, tank size, fuel type — v1.0
+- ✓ Fillup entry: date, gallons, price, odometer, MPG calculation, full/partial, notes — v1.0
+- ✓ Auto-detect location (city, state, country) via GPS and reverse geocoding — v1.0
+- ✓ PWA with offline capability and mobile-optimized UI — v1.0
+- ✓ Per-vehicle fillup history and fuel economy tracking — v1.0
+- ✓ Dashboard showing recent fillups and MPG trends — v1.0
+- ✓ CSV import for historical fillup records — v1.0
 
 ### Active
 
-- [ ] User authentication with account creation and login
-- [ ] Family groups for sharing cars between users
-- [ ] Vehicle profiles with year/make/model, photo, tank size, fuel type
-- [ ] Fillup entry: date, gallons, price, odometer, car's MPG estimate, full/partial, notes
-- [ ] Auto-detect location (city, state, country) and GPS coordinates via device
-- [ ] PWA with offline capability and mobile-optimized UI
-- [ ] Per-vehicle fillup history and fuel economy tracking
-- [ ] Dashboard showing recent fillups and MPG trends
+(None — all v1.0 requirements shipped)
 
 ### Out of Scope
 
@@ -33,7 +34,16 @@ Quick fillup entry — fast, frictionless logging from the phone at the pump. If
 
 ## Context
 
-This is a personal/family tool for tracking fuel economy across multiple vehicles. The primary use case is standing at the gas pump and quickly logging the fillup before driving away. Location detection should minimize manual entry. Family members should be able to log fillups for shared household vehicles.
+**Current state:** v1.0 MVP shipped with ~19,800 LOC TypeScript.
+
+**Tech stack:**
+- Next.js 16 with App Router
+- Prisma 7 with PostgreSQL
+- Auth.js v5 (NextAuth)
+- Tailwind CSS 4
+- Serwist for PWA/service worker
+
+**Deployment:** Docker container with docker-compose, images on GHCR.
 
 ## Constraints
 
@@ -41,16 +51,21 @@ This is a personal/family tool for tracking fuel economy across multiple vehicle
 - **Deployment**: Self-hosted Docker container
 - **Auth**: Multi-user with family group sharing
 - **Platform**: PWA, mobile-first but functional on desktop
-- **Location**: Browser Geolocation API for auto-detecting fillup location
+- **Location**: Browser Geolocation API + OpenStreetMap Nominatim for reverse geocoding
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Next.js + Prisma + PostgreSQL | User preference, proven stack for full-stack apps | — Pending |
-| Self-hosted Docker | User infrastructure preference | — Pending |
-| Family groups over simple multi-user | Enables car sharing between household members | — Pending |
-| PWA over native app | Cross-platform, installable, no app store overhead | — Pending |
+| Next.js + Prisma + PostgreSQL | User preference, proven stack for full-stack apps | ✓ Good |
+| Self-hosted Docker | User infrastructure preference | ✓ Good |
+| Family groups over simple multi-user | Enables car sharing between household members | ✓ Good |
+| PWA over native app | Cross-platform, installable, no app store overhead | ✓ Good |
+| Auth.js v5 with Edge-compatible config | Prisma not available in Edge runtime, separate config needed | ✓ Good |
+| Prisma 7.x with driver adapters | Required for PostgreSQL connection in newer Prisma | ✓ Good |
+| Serwist for service worker | Modern fork of next-pwa, better maintained | ✓ Good |
+| OpenStreetMap Nominatim | Free, no API key required for reverse geocoding | ✓ Good |
+| IndexedDB for offline queue | Reliable offline storage for pending fillups | ✓ Good |
 
 ---
-*Last updated: 2026-01-13 after initialization*
+*Last updated: 2026-01-14 after v1.0 milestone*
