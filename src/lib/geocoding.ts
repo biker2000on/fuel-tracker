@@ -9,6 +9,9 @@ interface NominatimAddress {
   town?: string
   village?: string
   municipality?: string
+  county?: string
+  suburb?: string
+  hamlet?: string
   state?: string
   country?: string
 }
@@ -54,6 +57,7 @@ export async function reverseGeocode(
     url.searchParams.set('lat', latitude.toString())
     url.searchParams.set('lon', longitude.toString())
     url.searchParams.set('format', 'json')
+    url.searchParams.set('addressdetails', '1')
 
     const response = await fetch(url.toString(), {
       headers: {
@@ -76,7 +80,7 @@ export async function reverseGeocode(
     const address = data.address
 
     return {
-      city: address.city || address.town || address.village || address.municipality || null,
+      city: address.city || address.town || address.village || address.municipality || address.county || address.suburb || address.hamlet || null,
       state: address.state || null,
       country: address.country || null,
     }
