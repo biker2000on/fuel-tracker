@@ -88,8 +88,8 @@ export async function GET(request: Request) {
   // Build where clause
   interface WhereClause {
     vehicleId: { in: string[] } | string
-    id?: { lt: string }
-    date?: { gte?: Date; lte?: Date }
+    date?: { gte?: Date; lte?: Date; lt?: Date }
+    OR?: Array<{ date: { lt: Date } } | { date: Date; id: { lt: string } }>
   }
 
   const whereClause: WhereClause = {
@@ -118,9 +118,19 @@ export async function GET(request: Request) {
     }
   }
 
-  // Apply cursor for pagination (cursor is the ID to start after)
+  // Apply cursor for pagination
+  // Cursor format: "date_id" where date is ISO string and id is the fillup ID
+  // This ensures proper ordering across different years
   if (cursor) {
-    whereClause.id = { lt: cursor }
+    const [cursorDate, cursorId] = cursor.split('_')
+    if (cursorDate && cursorId) {
+      const cursorDateObj = new Date(cursorDate)
+      // Get items where: date < cursorDate OR (date = cursorDate AND id < cursorId)
+      whereClause.OR = [
+        { date: { lt: cursorDateObj } },
+        { date: cursorDateObj, id: { lt: cursorId } }
+      ]
+    }
   }
 
   // Fetch one more than pageSize to determine if there are more results
@@ -133,7 +143,11 @@ export async function GET(request: Request) {
   // Determine if there are more results
   const hasMore = fillups.length > pageSize
   const results = hasMore ? fillups.slice(0, pageSize) : fillups
-  const nextCursor = hasMore && results.length > 0 ? results[results.length - 1].id : null
+  // Cursor format: "date_id" for proper ordering across years
+  const lastResult = results[results.length - 1]
+  const nextCursor = hasMore && lastResult
+    ? `${lastResult.date.toISOString()}_${lastResult.id}`
+    : null
 
   const fillupsWithVehicleName = results.map((fillup) => ({
     id: fillup.id,

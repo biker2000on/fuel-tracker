@@ -77,7 +77,10 @@ export default function DashboardPage() {
   }
 
   function formatDate(dateString: string): string {
-    const date = new Date(dateString)
+    // Parse as local date to avoid timezone shift
+    const datePart = dateString.split('T')[0]
+    const [year, month, day] = datePart.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric'

@@ -1,0 +1,21 @@
+date,gallons,pricePerGallon,odometer,isFull,notes,city,state
+2024-01-05,12.34,3.19,42150,true,Costco,Seattle,WA
+2024-01-12,11.87,3.25,42480,true,,Bellevue,WA
+2024-01-20,13.02,3.29,42830,true,Shell station,Tacoma,WA
+2024-01-28,10.45,3.35,43120,false,Partial fill - low on cash,Seattle,WA
+2024-02-03,14.21,3.22,43510,true,Costco,Seattle,WA
+2024-02-11,12.56,3.28,43870,true,,Redmond,WA
+2024-02-18,11.93,3.31,44200,true,Arco,Olympia,WA
+2024-02-25,12.78,3.27,44560,true,,Seattle,WA
+2024-03-04,13.45,3.35,44930,true,Road trip start,Portland,OR
+2024-03-06,11.22,3.42,45250,true,Road trip return,Seattle,WA
+2024-03-15,12.11,3.38,45580,true,Costco,Seattle,WA
+2024-03-23,13.67,3.29,45970,true,,Bellevue,WA
+2024-04-01,12.89,3.45,46320,true,Shell,Tacoma,WA
+2024-04-10,11.54,3.52,46650,true,,Seattle,WA
+2024-04-18,13.23,3.48,47010,true,Costco,Seattle,WA
+2024-04-27,12.01,3.55,47340,true,,Redmond,WA
+2024-05-05,14.12,3.62,47720,true,Long weekend trip,Spokane,WA
+2024-05-08,12.45,3.58,48090,true,,Seattle,WA
+2024-05-17,11.78,3.49,48410,true,Costco,Seattle,WA
+2024-05-26,13.34,3.45,48780,true,,Bellevue,WA

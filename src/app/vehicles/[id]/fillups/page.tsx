@@ -211,7 +211,12 @@ function VehicleFillupsContent() {
   }
 
   function formatDate(dateString: string): string {
-    const date = new Date(dateString)
+    // Parse as local date to avoid timezone shift
+    // dateString is ISO format: "2024-01-28T00:00:00.000Z"
+    // Extract just the date part and treat as local
+    const datePart = dateString.split('T')[0]
+    const [year, month, day] = datePart.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
