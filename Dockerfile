@@ -13,6 +13,11 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
+# Prisma CLI stage - install only what's needed for db push
+FROM node:20-alpine AS prisma-cli
+WORKDIR /app
+RUN npm install prisma@latest --save-prod
+
 # Runner stage
 FROM node:20-alpine AS runner
 
@@ -32,12 +37,11 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=prisma-cli /app/node_modules ./node_modules
 
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
 
 # Startup script: ensure database schema is applied, then start the server
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+CMD ["sh", "-c", "npx prisma db push && node server.js"]
