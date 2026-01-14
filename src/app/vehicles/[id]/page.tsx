@@ -333,6 +333,12 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
               >
                 Edit
               </Link>
+              <Link
+                href={`/import?vehicleId=${id}`}
+                className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md text-center transition-colors"
+              >
+                Import
+              </Link>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="flex-1 py-2 px-4 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-200 font-medium rounded-md transition-colors"
