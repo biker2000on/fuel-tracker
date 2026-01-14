@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { useGeolocation } from '@/hooks/useGeolocation'
+import { useOfflineQueue } from '@/hooks/useOfflineQueue'
 import { reverseGeocode, formatLocation, GeocodedLocation } from '@/lib/geocoding'
 
 interface Vehicle {
@@ -53,8 +54,12 @@ function NewFillupForm() {
   const [geocodedLocation, setGeocodedLocation] = useState<GeocodedLocation | null>(null)
   const [isGeocoding, setIsGeocoding] = useState(false)
 
+  // Offline queue
+  const { isOnline, pendingCount, isSyncing, queueFillup, syncQueue } = useOfflineQueue()
+
   // Submit state
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Fetch vehicles on mount
@@ -125,6 +130,7 @@ function NewFillupForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setSuccessMessage('')
 
     if (!selectedVehicleId) {
       setError('Please select a vehicle')
@@ -152,24 +158,47 @@ function NewFillupForm() {
 
     setIsSubmitting(true)
 
+    const fillupData = {
+      vehicleId: selectedVehicleId,
+      date: new Date(date).toISOString(),
+      gallons: gallonsNum,
+      pricePerGallon: priceNum,
+      odometer: odometerNum,
+      isFull,
+      notes: notes.trim() || null,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
+      city: geocodedLocation?.city ?? null,
+      state: geocodedLocation?.state ?? null,
+      country: geocodedLocation?.country ?? null
+    }
+
+    // If offline, queue the fillup locally
+    if (!isOnline) {
+      try {
+        await queueFillup(fillupData)
+        setSuccessMessage('Saved offline - will sync when connected')
+        // Reset form
+        setGallons('')
+        setPricePerGallon('')
+        setOdometer('')
+        setNotes('')
+        setShowNotes(false)
+        setIsSubmitting(false)
+        return
+      } catch {
+        setError('Failed to save offline. Please try again.')
+        setIsSubmitting(false)
+        return
+      }
+    }
+
+    // Online: submit directly to API
     try {
       const response = await fetch('/api/fillups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vehicleId: selectedVehicleId,
-          date: new Date(date).toISOString(),
-          gallons: gallonsNum,
-          pricePerGallon: priceNum,
-          odometer: odometerNum,
-          isFull,
-          notes: notes.trim() || null,
-          latitude: latitude ?? null,
-          longitude: longitude ?? null,
-          city: geocodedLocation?.city ?? null,
-          state: geocodedLocation?.state ?? null,
-          country: geocodedLocation?.country ?? null
-        })
+        body: JSON.stringify(fillupData)
       })
 
       if (!response.ok) {
@@ -182,8 +211,21 @@ function NewFillupForm() {
       // Success - navigate to vehicle's fillups page
       router.push(`/vehicles/${selectedVehicleId}/fillups?success=1`)
     } catch {
-      setError('An error occurred. Please try again.')
-      setIsSubmitting(false)
+      // Network error - queue offline
+      try {
+        await queueFillup(fillupData)
+        setSuccessMessage('Connection lost - saved offline for later sync')
+        // Reset form
+        setGallons('')
+        setPricePerGallon('')
+        setOdometer('')
+        setNotes('')
+        setShowNotes(false)
+        setIsSubmitting(false)
+      } catch {
+        setError('An error occurred. Please try again.')
+        setIsSubmitting(false)
+      }
     }
   }
 
@@ -240,14 +282,50 @@ function NewFillupForm() {
           >
             &larr; Back
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
-            Log Fillup
-          </h1>
+          <div className="flex items-center justify-between mt-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Log Fillup
+            </h1>
+            {/* Offline indicator */}
+            {!isOnline && (
+              <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 rounded-full">
+                Offline
+              </span>
+            )}
+          </div>
+          {/* Pending sync count */}
+          {pendingCount > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {pendingCount} fillup{pendingCount !== 1 ? 's' : ''} pending sync
+              </span>
+              {isOnline && !isSyncing && (
+                <button
+                  type="button"
+                  onClick={() => syncQueue()}
+                  className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
+                >
+                  Sync Now
+                </button>
+              )}
+              {isSyncing && (
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Syncing...
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 rounded-md text-sm">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 rounded-md text-sm">
+            {successMessage}
           </div>
         )}
 
