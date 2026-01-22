@@ -1,5 +1,6 @@
 /**
- * Sync engine with retry and exponential backoff for offline fillup queue
+ * Sync engine with retry, exponential backoff, and conflict detection
+ * for offline fillup queue
  */
 
 import { getQueue, removeFromQueue, type PendingFillup } from './offlineDb'
@@ -9,18 +10,38 @@ export interface SyncResult {
   pendingId: string
   error?: string
   retryCount: number
+  conflict?: Conflict  // Present if sync blocked by conflict
 }
 
 export interface SyncOptions {
   maxRetries?: number   // default: 3
   baseDelay?: number    // default: 1000ms
   maxDelay?: number     // default: 30000ms
+  checkConflicts?: boolean  // default: true
 }
+
+// Conflict detection types
+export interface ServerFillup {
+  id: string
+  date: string
+  gallons: number
+  odometer: number
+  createdAt: string
+}
+
+export interface Conflict {
+  pendingFillup: PendingFillup
+  serverFillups: ServerFillup[]
+  reason: 'odometer_overlap' | 'potential_duplicate'
+}
+
+export type ConflictResolution = 'keep_mine' | 'keep_server' | 'keep_both'
 
 const DEFAULT_OPTIONS: Required<SyncOptions> = {
   maxRetries: 3,
   baseDelay: 1000,
-  maxDelay: 30000
+  maxDelay: 30000,
+  checkConflicts: true
 }
 
 /**
@@ -63,15 +84,135 @@ function isRetryableError(error: unknown, statusCode?: number): boolean {
 }
 
 /**
+ * Check if a pending fillup conflicts with server data
+ * Conflict occurs if server has newer fillups that might affect MPG calculation
+ */
+export async function checkForConflicts(
+  pending: PendingFillup
+): Promise<Conflict | null> {
+  try {
+    // Get fillups from server since the pending fillup was queued
+    const since = encodeURIComponent(pending.createdAt)
+    const response = await fetch(
+      `/api/fillups?vehicleId=${pending.data.vehicleId}&since=${since}&limit=10`
+    )
+
+    if (!response.ok) {
+      // If we can't check for conflicts, proceed without blocking
+      return null
+    }
+
+    const data = await response.json()
+    const serverFillups: ServerFillup[] = data.fillups || []
+
+    if (serverFillups.length === 0) {
+      // No new fillups on server since queuing - no conflict
+      return null
+    }
+
+    // Check for odometer conflicts
+    // If server has fillups with odometer readings near our pending fillup's odometer,
+    // this could indicate a duplicate or conflicting entry
+    const conflictingFillups = serverFillups.filter(sf => {
+      const odometerDiff = Math.abs(sf.odometer - pending.data.odometer)
+      // Consider it a conflict if odometers are within 50 miles
+      // (likely same fillup entered from another device)
+      if (odometerDiff < 50) {
+        return true
+      }
+      // Also conflict if dates match closely
+      const pendingDate = new Date(pending.data.date).getTime()
+      const serverDate = new Date(sf.date).getTime()
+      const oneDayMs = 24 * 60 * 60 * 1000
+      if (Math.abs(pendingDate - serverDate) < oneDayMs && odometerDiff < 200) {
+        return true
+      }
+      return false
+    })
+
+    if (conflictingFillups.length > 0) {
+      // Check if it's likely a duplicate
+      const isDuplicate = conflictingFillups.some(sf => {
+        const odometerMatch = Math.abs(sf.odometer - pending.data.odometer) < 5
+        const gallonsMatch = Math.abs(sf.gallons - pending.data.gallons) < 0.5
+        return odometerMatch && gallonsMatch
+      })
+
+      return {
+        pendingFillup: pending,
+        serverFillups: conflictingFillups,
+        reason: isDuplicate ? 'potential_duplicate' : 'odometer_overlap'
+      }
+    }
+
+    return null
+  } catch {
+    // If conflict check fails, don't block sync
+    return null
+  }
+}
+
+/**
+ * Resolve a conflict based on user's choice
+ */
+export async function resolveConflict(
+  conflict: Conflict,
+  resolution: ConflictResolution
+): Promise<SyncResult> {
+  const pending = conflict.pendingFillup
+
+  switch (resolution) {
+    case 'keep_mine':
+      // Proceed with sync - server will recalculate MPG
+      return syncSingleFillup(pending, { checkConflicts: false })
+
+    case 'keep_server':
+      // Remove from queue, don't sync
+      await removeFromQueue(pending.id)
+      return {
+        success: true,
+        pendingId: pending.id,
+        retryCount: 0
+      }
+
+    case 'keep_both':
+      // Sync the pending fillup as-is
+      return syncSingleFillup(pending, { checkConflicts: false })
+
+    default:
+      return {
+        success: false,
+        pendingId: pending.id,
+        error: 'Invalid resolution',
+        retryCount: 0
+      }
+  }
+}
+
+/**
  * Sync a single fillup to the server with retry logic
  */
 export async function syncSingleFillup(
   pending: PendingFillup,
   options?: SyncOptions
 ): Promise<SyncResult> {
-  const opts = { ...DEFAULT_OPTIONS, ...options }
+  const opts = { ...DEFAULT_OPTIONS, checkConflicts: true, ...options }
   let lastError: string | undefined
   let retryCount = 0
+
+  // Check for conflicts before syncing (unless explicitly disabled)
+  if (opts.checkConflicts) {
+    const conflict = await checkForConflicts(pending)
+    if (conflict) {
+      return {
+        success: false,
+        pendingId: pending.id,
+        error: 'Conflict detected - requires resolution',
+        retryCount: 0,
+        conflict
+      }
+    }
+  }
 
   for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
     try {
