@@ -1,9 +1,12 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
+import { useOffline } from '@/contexts/OfflineContext'
+import { getQueue, removeFromQueue, type PendingFillup } from '@/lib/offlineDb'
+import { PendingFillupBadge } from '@/components/PendingFillupBadge'
 
 interface Fillup {
   id: string
@@ -27,6 +30,23 @@ interface Vehicle {
   model: string
 }
 
+// Unified type for display - includes both synced and pending fillups
+interface DisplayFillup {
+  id: string
+  date: string
+  gallons: number
+  pricePerGallon: number
+  totalCost: number
+  odometer: number
+  mpg: number | null
+  isFull: boolean
+  notes: string | null
+  city: string | null
+  state: string | null
+  isPending: boolean
+  pendingId?: string // For pending items, this is the queue ID
+}
+
 function VehicleFillupsContent() {
   const { status } = useSession()
   const router = useRouter()
@@ -34,9 +54,11 @@ function VehicleFillupsContent() {
   const searchParams = useSearchParams()
   const vehicleId = params.id as string
   const showSuccess = searchParams.get('success') === '1'
+  const { isOnline, syncQueue, refreshPendingCount } = useOffline()
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [fillups, setFillups] = useState<Fillup[]>([])
+  const [pendingFillups, setPendingFillups] = useState<PendingFillup[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [expandedFillupId, setExpandedFillupId] = useState<string | null>(null)
@@ -49,6 +71,19 @@ function VehicleFillupsContent() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [isSyncingNow, setIsSyncingNow] = useState(false)
+
+  // Fetch pending fillups from IndexedDB
+  const fetchPendingFillups = useCallback(async () => {
+    try {
+      const queue = await getQueue()
+      // Filter to only this vehicle's pending fillups
+      const vehiclePending = queue.filter(p => p.data.vehicleId === vehicleId)
+      setPendingFillups(vehiclePending)
+    } catch {
+      console.error('Failed to fetch pending fillups')
+    }
+  }, [vehicleId])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -59,8 +94,9 @@ function VehicleFillupsContent() {
     if (status === 'authenticated') {
       fetchVehicle()
       fetchFillups()
+      fetchPendingFillups()
     }
-  }, [status, router, vehicleId])
+  }, [status, router, vehicleId, fetchPendingFillups])
 
   // Clear success message after 3 seconds
   useEffect(() => {
@@ -185,28 +221,52 @@ function VehicleFillupsContent() {
     }
   }
 
-  async function handleDelete(fillupId: string) {
+  async function handleDelete(fillupId: string, isPending: boolean) {
     if (!confirm('Delete this fillup? This cannot be undone.')) {
       return
     }
 
     setDeletingId(fillupId)
     try {
-      const response = await fetch(`/api/fillups/${fillupId}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        setFillups(fillups.filter(f => f.id !== fillupId))
-        setExpandedFillupId(null)
+      if (isPending) {
+        // Delete from IndexedDB queue
+        await removeFromQueue(fillupId)
+        setPendingFillups(prev => prev.filter(p => p.id !== fillupId))
+        await refreshPendingCount()
       } else {
-        const data = await response.json()
-        setError(data.error || 'Failed to delete fillup')
+        // Delete from server
+        const response = await fetch(`/api/fillups/${fillupId}`, {
+          method: 'DELETE'
+        })
+
+        if (response.ok) {
+          setFillups(fillups.filter(f => f.id !== fillupId))
+        } else {
+          const data = await response.json()
+          setError(data.error || 'Failed to delete fillup')
+        }
       }
+      setExpandedFillupId(null)
     } catch {
       setError('Failed to delete fillup')
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleSyncNow() {
+    if (!isOnline || isSyncingNow) return
+
+    setIsSyncingNow(true)
+    try {
+      await syncQueue()
+      // Refresh both pending and synced fillups
+      await fetchPendingFillups()
+      await fetchFillups()
+    } catch {
+      setError('Failed to sync fillups')
+    } finally {
+      setIsSyncingNow(false)
     }
   }
 
@@ -231,7 +291,56 @@ function VehicleFillupsContent() {
     return null
   }
 
-  // Calculate stats
+  // Convert pending fillups to display format and merge with server fillups
+  function getDisplayFillups(): DisplayFillup[] {
+    // Convert synced fillups to display format
+    const syncedDisplay: DisplayFillup[] = fillups.map(f => ({
+      ...f,
+      isPending: false
+    }))
+
+    // Convert pending fillups to display format
+    // Calculate estimated MPG if we have a previous fillup
+    const pendingDisplay: DisplayFillup[] = pendingFillups.map(p => {
+      const totalCost = p.data.gallons * p.data.pricePerGallon
+
+      // Try to estimate MPG from the most recent synced fillup
+      let estimatedMpg: number | null = null
+      if (p.data.isFull && fillups.length > 0) {
+        // Find the most recent fillup with lower odometer
+        const previousFillup = fillups.find(f => f.odometer < p.data.odometer && f.isFull)
+        if (previousFillup) {
+          const milesDriven = p.data.odometer - previousFillup.odometer
+          estimatedMpg = milesDriven / p.data.gallons
+        }
+      }
+
+      return {
+        id: `pending-${p.id}`,
+        date: p.data.date,
+        gallons: p.data.gallons,
+        pricePerGallon: p.data.pricePerGallon,
+        totalCost,
+        odometer: p.data.odometer,
+        mpg: estimatedMpg,
+        isFull: p.data.isFull,
+        notes: p.data.notes,
+        city: p.data.city,
+        state: p.data.state,
+        isPending: true,
+        pendingId: p.id
+      }
+    })
+
+    // Sort pending by createdAt (newest first for display at top)
+    // Then append synced fillups (already sorted by date from server)
+    return [...pendingDisplay.reverse(), ...syncedDisplay]
+  }
+
+  const displayFillups = getDisplayFillups()
+  const hasPendingFillups = pendingFillups.length > 0
+
+  // Calculate stats (only from synced fillups for accuracy)
   const totalFillups = fillups.length
   const totalGallons = fillups.reduce((sum, f) => sum + f.gallons, 0)
   const fillupsWithMpg = fillups.filter(f => f.mpg !== null)
@@ -298,6 +407,32 @@ function VehicleFillupsContent() {
             {showFilters ? 'Hide Filters' : 'Filter'}
           </button>
         </div>
+
+        {/* Pending Fillups Banner */}
+        {hasPendingFillups && (
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <svg className="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm text-amber-800 dark:text-amber-200">
+                  {pendingFillups.length} fillup{pendingFillups.length !== 1 ? 's' : ''} pending sync
+                </span>
+              </div>
+              {isOnline && (
+                <button
+                  type="button"
+                  onClick={handleSyncNow}
+                  disabled={isSyncingNow}
+                  className="text-sm text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 font-medium disabled:opacity-50"
+                >
+                  {isSyncingNow ? 'Syncing...' : 'Sync now'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Active Filter Badge */}
         {activeFilter && (
@@ -427,7 +562,7 @@ function VehicleFillupsContent() {
         )}
 
         {/* Fillup List */}
-        {fillups.length === 0 ? (
+        {displayFillups.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 text-center">
             {activeFilter ? (
               <>
@@ -458,14 +593,17 @@ function VehicleFillupsContent() {
           </div>
         ) : (
           <div className="space-y-3">
-            {fillups.map((fillup) => {
+            {displayFillups.map((fillup) => {
               const isExpanded = expandedFillupId === fillup.id
               const location = formatLocation(fillup.city, fillup.state)
+              const deleteId = fillup.isPending ? fillup.pendingId! : fillup.id
 
               return (
                 <div
                   key={fillup.id}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
+                  className={`bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden ${
+                    fillup.isPending ? 'ring-2 ring-amber-300 dark:ring-amber-600' : ''
+                  }`}
                 >
                   {/* Main Card Content */}
                   <button
@@ -475,9 +613,12 @@ function VehicleFillupsContent() {
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {formatDate(fillup.date)}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {formatDate(fillup.date)}
+                          </p>
+                          {fillup.isPending && <PendingFillupBadge />}
+                        </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                           {fillup.gallons.toFixed(1)} gal &bull; ${fillup.totalCost.toFixed(2)}
                         </p>
@@ -489,8 +630,12 @@ function VehicleFillupsContent() {
                       </div>
                       <div className="text-right">
                         {fillup.mpg && (
-                          <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                            {fillup.mpg.toFixed(1)} MPG
+                          <p className={`text-lg font-semibold ${
+                            fillup.isPending
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-green-600 dark:text-green-400'
+                          }`}>
+                            {fillup.isPending && '~'}{fillup.mpg.toFixed(1)} MPG
                           </p>
                         )}
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -525,21 +670,60 @@ function VehicleFillupsContent() {
                         </div>
                       )}
 
+                      {/* Pending fillup status */}
+                      {fillup.isPending && (
+                        <div className="mb-4 p-2 bg-amber-50 dark:bg-amber-900/20 rounded text-sm">
+                          <p className="text-amber-800 dark:text-amber-200">
+                            Pending sync
+                            {fillup.mpg && ' (MPG is estimated)'}
+                          </p>
+                          {isOnline && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleSyncNow()
+                              }}
+                              disabled={isSyncingNow}
+                              className="mt-1 text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 font-medium"
+                            >
+                              {isSyncingNow ? 'Syncing...' : 'Sync now'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       <div className="flex gap-3">
-                        <Link
-                          href={`/fillups/${fillup.id}/edit`}
-                          className="flex-1 py-2 px-3 text-center text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors"
-                        >
-                          Edit
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(fillup.id)}
-                          disabled={deletingId === fillup.id}
-                          className="flex-1 py-2 px-3 text-center text-sm bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-md transition-colors disabled:opacity-50"
-                        >
-                          {deletingId === fillup.id ? 'Deleting...' : 'Delete'}
-                        </button>
+                        {fillup.isPending ? (
+                          // Pending fillup actions - edit goes to new fillup form with data pre-filled
+                          // For now, just show delete since editing queued items requires more UI work
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(deleteId, true)}
+                            disabled={deletingId === deleteId}
+                            className="flex-1 py-2 px-3 text-center text-sm bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-md transition-colors disabled:opacity-50"
+                          >
+                            {deletingId === deleteId ? 'Deleting...' : 'Delete'}
+                          </button>
+                        ) : (
+                          // Synced fillup actions
+                          <>
+                            <Link
+                              href={`/fillups/${fillup.id}/edit`}
+                              className="flex-1 py-2 px-3 text-center text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-md transition-colors"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(fillup.id, false)}
+                              disabled={deletingId === fillup.id}
+                              className="flex-1 py-2 px-3 text-center text-sm bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-md transition-colors disabled:opacity-50"
+                            >
+                              {deletingId === fillup.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}

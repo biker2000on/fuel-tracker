@@ -136,6 +136,39 @@ export async function getQueueCount(): Promise<number> {
   ).length
 }
 
+/**
+ * Update a specific fillup in the queue
+ * Allows editing queued fillups before they sync
+ */
+export async function updateQueueItem(
+  id: string,
+  data: Partial<PendingFillup['data']>
+): Promise<PendingFillup | null> {
+  const existing = await get<PendingFillup>(`${QUEUE_PREFIX}${id}`)
+  if (!existing) {
+    return null
+  }
+
+  const updated: PendingFillup = {
+    ...existing,
+    data: {
+      ...existing.data,
+      ...data
+    }
+  }
+
+  await set(`${QUEUE_PREFIX}${id}`, updated)
+  return updated
+}
+
+/**
+ * Get a specific pending fillup by ID
+ */
+export async function getQueueItem(id: string): Promise<PendingFillup | null> {
+  const item = await get<PendingFillup>(`${QUEUE_PREFIX}${id}`)
+  return item || null
+}
+
 // =============================================================================
 // Vehicle Caching
 // =============================================================================
