@@ -2,19 +2,68 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { InstallButton } from '@/components/InstallButton'
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update: updateSession } = useSession()
   const router = useRouter()
+
+  // Profile editing state
+  const [name, setName] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Initialize name from session
+  useEffect(() => {
+    if (session?.user?.name) {
+      setName(session.user.name)
+    }
+  }, [session?.user?.name])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login')
     }
   }, [status, router])
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    setSaveError(null)
+    setSaveSuccess(false)
+
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to save profile')
+      }
+
+      // Update session with new name
+      await updateSession({ name: name.trim() })
+      setIsEditing(false)
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save profile')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setName(session?.user?.name || '')
+    setIsEditing(false)
+    setSaveError(null)
+  }
 
   if (status === 'loading') {
     return (
@@ -59,9 +108,34 @@ export default function ProfilePage() {
 
         {/* Account Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4">
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
-            Account
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              Account
+            </h2>
+            {!isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+
+          {saveSuccess && (
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
+              <p className="text-sm text-green-700 dark:text-green-300">
+                Profile updated successfully
+              </p>
+            </div>
+          )}
+
+          {saveError && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-700 dark:text-red-300">{saveError}</p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
@@ -75,14 +149,41 @@ export default function ProfilePage() {
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
                 Name
               </label>
-              <p className="text-gray-900 dark:text-white">
-                {session?.user?.name || 'Not set'}
-              </p>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter your name"
+                  maxLength={100}
+                />
+              ) : (
+                <p className="text-gray-900 dark:text-white">
+                  {session?.user?.name || 'Not set'}
+                </p>
+              )}
             </div>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-4">
-            Account management coming soon
-          </p>
+
+          {isEditing && (
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         {/* App Section */}
