@@ -2,9 +2,28 @@
 
 import { SessionProvider } from 'next-auth/react'
 import { ThemeProvider } from '@/contexts/ThemeContext'
-import { OfflineProvider } from '@/contexts/OfflineContext'
+import { OfflineProvider, useOffline } from '@/contexts/OfflineContext'
 import { ConnectionToast } from '@/components/ConnectionToast'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
+import { ConflictResolver } from '@/components/ConflictResolver'
+
+function OfflineUIComponents() {
+  const { activeConflict, handleConflictResolution, dismissConflict } = useOffline()
+
+  return (
+    <>
+      <ConnectionToast />
+      <OfflineIndicator />
+      {activeConflict && (
+        <ConflictResolver
+          conflict={activeConflict}
+          onResolve={handleConflictResolution}
+          onCancel={dismissConflict}
+        />
+      )}
+    </>
+  )
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,8 +31,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <OfflineProvider>
           {children}
-          <ConnectionToast />
-          <OfflineIndicator />
+          <OfflineUIComponents />
         </OfflineProvider>
       </ThemeProvider>
     </SessionProvider>

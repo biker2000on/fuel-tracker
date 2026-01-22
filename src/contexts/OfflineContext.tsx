@@ -9,7 +9,8 @@ import {
 } from 'react'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import { useOfflineQueue } from '@/hooks/useOfflineQueue'
-import type { SyncResult, SyncOptions } from '@/lib/syncEngine'
+import type { SyncResult, SyncOptions, Conflict, ConflictResolution } from '@/lib/syncEngine'
+import { resolveConflict } from '@/lib/syncEngine'
 
 interface OfflineContextValue {
   isOnline: boolean
@@ -21,6 +22,10 @@ interface OfflineContextValue {
   // Sync notification state
   lastSyncedCount: number | null
   clearSyncNotification: () => void
+  // Conflict handling
+  activeConflict: Conflict | null
+  handleConflictResolution: (resolution: ConflictResolution) => Promise<void>
+  dismissConflict: () => void
 }
 
 const OfflineContext = createContext<OfflineContextValue | undefined>(undefined)
@@ -28,16 +33,26 @@ const OfflineContext = createContext<OfflineContextValue | undefined>(undefined)
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const { isOnline, wasOffline } = useNetworkStatus()
   const [lastSyncedCount, setLastSyncedCount] = useState<number | null>(null)
+  const [activeConflict, setActiveConflict] = useState<Conflict | null>(null)
 
   // Handle sync completion - show notification when items synced after coming back online
-  const handleSyncComplete = useCallback((syncedCount: number) => {
+  const handleSyncComplete = useCallback((syncedCount: number, results: SyncResult[]) => {
     if (wasOffline && syncedCount > 0) {
       setLastSyncedCount(syncedCount)
+    }
+    // Check for conflicts in results
+    const conflictResult = results.find(r => r.conflict)
+    if (conflictResult?.conflict) {
+      setActiveConflict(conflictResult.conflict)
     }
   }, [wasOffline])
 
   const clearSyncNotification = useCallback(() => {
     setLastSyncedCount(null)
+  }, [])
+
+  const dismissConflict = useCallback(() => {
+    setActiveConflict(null)
   }, [])
 
   const {
@@ -49,6 +64,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     onSyncComplete: handleSyncComplete
   })
 
+  const handleConflictResolution = useCallback(async (resolution: ConflictResolution) => {
+    if (!activeConflict) return
+
+    await resolveConflict(activeConflict, resolution)
+    setActiveConflict(null)
+    await refreshPendingCount()
+
+    // Try syncing remaining items
+    await syncQueue({ checkConflicts: true })
+  }, [activeConflict, refreshPendingCount, syncQueue])
+
   return (
     <OfflineContext.Provider value={{
       isOnline,
@@ -58,7 +84,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       syncQueue,
       refreshPendingCount,
       lastSyncedCount,
-      clearSyncNotification
+      clearSyncNotification,
+      activeConflict,
+      handleConflictResolution,
+      dismissConflict
     }}>
       {children}
     </OfflineContext.Provider>
