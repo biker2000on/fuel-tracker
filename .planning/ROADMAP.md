@@ -29,15 +29,14 @@
 
 **Milestone Goal:** Fix UI issues, add theme system, fix PWA/offline functionality, and add profile management.
 
-#### Phase 9: UI/Layout Fixes
+#### Phase 9: UI/Layout Fixes ✓
 
 **Goal**: Fix fillup button covered by bottom menu, vehicles icon appearance on mobile, and other layout issues
 **Depends on**: v1.0 complete
-**Research**: Unlikely (internal CSS/layout patterns)
-**Plans**: TBD
+**Completed**: 2026-01-22
 
 Plans:
-- [ ] 09-01: TBD (run /gsd:plan-phase 9 to break down)
+- [x] 09-01: UI/Layout Fixes — fixed button positioning, vehicles icon
 
 #### Phase 10: Theme System
 
@@ -92,7 +91,7 @@ Plans:
 | 6. History & Analytics | v1.0 | 3/3 | Complete | 2026-01-13 |
 | 7. PWA Polish | v1.0 | 3/3 | Complete | 2026-01-14 |
 | 8. CSV Import | v1.0 | 2/2 | Complete | 2026-01-14 |
-| 9. UI/Layout Fixes | v1.1 | 0/? | Not started | - |
+| 9. UI/Layout Fixes | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 10. Theme System | v1.1 | 0/? | Not started | - |
 | 11. PWA & Offline | v1.1 | 0/? | Not started | - |
 | 12. MPG Recalculation | v1.1 | 0/? | Not started | - |
