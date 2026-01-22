@@ -60,10 +60,19 @@ Plans:
 - [x] 11-03: Enhanced sync engine with retry/backoff and pending fillup display
 - [x] 11-04: Data caching for offline viewing and conflict resolution
 
+#### Phase 11.1: Infinite Scroll on Vehicles Fillups Page (INSERTED)
+
+**Goal**: Add infinite scroll to vehicles fillups page for better performance with large fillup histories
+**Depends on**: Phase 11
+**Plans**: 1 plan
+
+Plans:
+- [ ] 11.1-01-PLAN.md — Infinite scroll with IntersectionObserver and accessibility enhancements
+
 #### Phase 12: MPG Recalculation
 
 **Goal**: Recompute MPG on edit for current and next fillups, add manual recompute button
-**Depends on**: Phase 11
+**Depends on**: Phase 11.1
 **Research**: Unlikely (internal database logic)
 **Plans**: TBD
 
@@ -95,5 +104,6 @@ Plans:
 | 9. UI/Layout Fixes | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 10. Theme System | v1.1 | 2/2 | Complete | 2026-01-22 |
 | 11. PWA & Offline | v1.1 | 4/4 | Complete | 2026-01-22 |
+| 11.1 Infinite Scroll | v1.1 | 0/1 | Not started | - |
 | 12. MPG Recalculation | v1.1 | 0/? | Not started | - |
 | 13. Profile Page | v1.1 | 0/? | Not started | - |
