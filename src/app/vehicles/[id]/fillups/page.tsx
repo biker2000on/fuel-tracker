@@ -193,6 +193,8 @@ function VehicleFillupsContent() {
     setNextCursor(null)
     setIsLoading(true)
     fetchFillups(undefined, start, end)
+    // Scroll to top when filter applied
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function clearFilter() {
@@ -418,7 +420,7 @@ function VehicleFillupsContent() {
         )}
 
         {/* Add Fillup Button */}
-        <div className="mb-6 flex items-center gap-4">
+        <div id="add-fillup-section" className="mb-6 flex items-center gap-4">
           <Link
             href={`/fillups/new?vehicleId=${vehicleId}`}
             className="inline-block py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition-colors"
@@ -557,6 +559,12 @@ function VehicleFillupsContent() {
           </div>
         )}
 
+        {/* Screen reader announcements for infinite scroll */}
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {isLoadingMore && "Loading more fillups"}
+          {!hasMore && displayFillups.length > 20 && "All fillups loaded"}
+        </div>
+
         {/* Stats Summary */}
         {fillups.length > 0 && (
           <div className="grid grid-cols-3 gap-4 mb-6">
@@ -619,6 +627,15 @@ function VehicleFillupsContent() {
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Skip link for keyboard users */}
+            {displayFillups.length > 20 && (
+              <a
+                href="#add-fillup-section"
+                className="sr-only focus:not-sr-only focus:absolute focus:top-20 focus:left-4 focus:z-50 focus:bg-white focus:dark:bg-gray-800 focus:px-4 focus:py-2 focus:shadow-lg focus:rounded-md focus:text-blue-600 focus:dark:text-blue-400"
+              >
+                Skip to top
+              </a>
+            )}
             {displayFillups.map((fillup) => {
               const isExpanded = expandedFillupId === fillup.id
               const location = formatLocation(fillup.city, fillup.state)
@@ -772,6 +789,18 @@ function VehicleFillupsContent() {
             {!hasMore && displayFillups.length > 20 && (
               <div className="mt-4 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
                 All fillups loaded
+              </div>
+            )}
+
+            {/* Offline cache limit indicator */}
+            {!isOnline && !hasMore && fillups.length <= 10 && fillups.length > 0 && (
+              <div className="mt-4 py-2 text-center">
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  Showing {fillups.length} most recent fillups (offline)
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Connect to load full history
+                </p>
               </div>
             )}
           </div>
