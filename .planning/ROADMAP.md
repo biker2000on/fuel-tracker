@@ -80,13 +80,13 @@ Plans:
 
 #### Phase 13: Profile Page
 
-**Goal**: Build profile page with theme preference, first/last name, email display, and password change option
+**Goal**: Build profile page with editable name, theme preference selector, email display, and password change
 **Depends on**: Phase 12
-**Research**: Unlikely (internal CRUD patterns)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — User profile and password change API endpoints
+- [ ] 13-02-PLAN.md — Profile page UI with edit form, theme selector, password change
 
 ## Progress
 
@@ -105,4 +105,4 @@ Plans:
 | 11. PWA & Offline | v1.1 | 4/4 | Complete | 2026-01-22 |
 | 11.1 Infinite Scroll | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 12. MPG Recalculation | v1.1 | 1/1 | Complete | 2026-01-22 |
-| 13. Profile Page | v1.1 | 0/? | Not started | - |
+| 13. Profile Page | v1.1 | 0/2 | Not started | - |
