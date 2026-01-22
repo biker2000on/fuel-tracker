@@ -52,13 +52,13 @@ Plans:
 
 **Goal**: Fix install prompt not appearing, enable offline fillup queuing with automatic sync when back online
 **Depends on**: Phase 10
-**Plans**: 4 plans
+**Completed**: 2026-01-22
 
 Plans:
-- [ ] 11-01-PLAN.md — Profile page with PWA install button
-- [ ] 11-02-PLAN.md — Offline context and connection status indicators
-- [ ] 11-03-PLAN.md — Enhanced sync engine with retry/backoff and pending fillup display
-- [ ] 11-04-PLAN.md — Data caching for offline viewing and conflict resolution
+- [x] 11-01: Profile page with PWA install button
+- [x] 11-02: Offline context and connection status indicators
+- [x] 11-03: Enhanced sync engine with retry/backoff and pending fillup display
+- [x] 11-04: Data caching for offline viewing and conflict resolution
 
 #### Phase 12: MPG Recalculation
 
@@ -94,6 +94,6 @@ Plans:
 | 8. CSV Import | v1.0 | 2/2 | Complete | 2026-01-14 |
 | 9. UI/Layout Fixes | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 10. Theme System | v1.1 | 2/2 | Complete | 2026-01-22 |
-| 11. PWA & Offline | v1.1 | 0/4 | Not started | - |
+| 11. PWA & Offline | v1.1 | 4/4 | Complete | 2026-01-22 |
 | 12. MPG Recalculation | v1.1 | 0/? | Not started | - |
 | 13. Profile Page | v1.1 | 0/? | Not started | - |
