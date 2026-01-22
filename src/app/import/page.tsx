@@ -447,7 +447,7 @@ function ImportForm() {
         </div>
 
         {/* Import Button */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900 border-t border-slate-700">
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 p-4 bg-slate-900 border-t border-slate-700">
           <div className="max-w-lg mx-auto">
             <button
               type="button"
