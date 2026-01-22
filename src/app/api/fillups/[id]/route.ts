@@ -151,6 +151,7 @@ export async function PATCH(
     pricePerGallon?: number
     totalCost?: number
     odometer?: number
+    mpg?: number | null
     isFull?: boolean
     notes?: string | null
     latitude?: number | null
@@ -267,6 +268,45 @@ export async function PATCH(
     updateData.totalCost = Math.round(finalGallons * finalPricePerGallon * 100) / 100
   }
 
+  // Recalculate MPG if gallons, odometer, or isFull changes
+  const mpgFieldsChanged = updateData.gallons !== undefined ||
+                            updateData.odometer !== undefined ||
+                            updateData.isFull !== undefined
+
+  const finalOdometer = updateData.odometer ?? fillup.odometer
+  const finalIsFull = updateData.isFull ?? fillup.isFull
+  const odometerChanged = updateData.odometer !== undefined && updateData.odometer !== fillup.odometer
+
+  if (mpgFieldsChanged) {
+    // If the fillup will be a full tank, calculate MPG
+    if (finalIsFull) {
+      // Find the most recent full fillup before this odometer reading
+      const previousFillup = await prisma.fillup.findFirst({
+        where: {
+          vehicleId: fillup.vehicleId,
+          isFull: true,
+          odometer: { lt: finalOdometer },
+          id: { not: fillup.id } // Exclude current fillup
+        },
+        orderBy: { odometer: 'desc' }
+      })
+
+      if (previousFillup) {
+        const milesDriven = finalOdometer - previousFillup.odometer
+        if (milesDriven > 0) {
+          updateData.mpg = Math.round((milesDriven / finalGallons) * 100) / 100
+        } else {
+          updateData.mpg = null
+        }
+      } else {
+        updateData.mpg = null
+      }
+    } else {
+      // Partial fillup - no MPG calculation
+      updateData.mpg = null
+    }
+  }
+
   try {
     const updatedFillup = await prisma.fillup.update({
       where: { id },
@@ -277,6 +317,49 @@ export async function PATCH(
         }
       }
     })
+
+    // If odometer changed, recalculate MPG for the next full fillup
+    if (odometerChanged) {
+      // Find the next full fillup with odometer > updated fillup's odometer
+      const nextFillup = await prisma.fillup.findFirst({
+        where: {
+          vehicleId: updatedFillup.vehicleId,
+          isFull: true,
+          odometer: { gt: updatedFillup.odometer }
+        },
+        orderBy: { odometer: 'asc' }
+      })
+
+      if (nextFillup) {
+        // Find the previous full fillup for the next fillup (could be the one we just updated)
+        const previousForNext = await prisma.fillup.findFirst({
+          where: {
+            vehicleId: updatedFillup.vehicleId,
+            isFull: true,
+            odometer: { lt: nextFillup.odometer }
+          },
+          orderBy: { odometer: 'desc' }
+        })
+
+        if (previousForNext) {
+          const milesDriven = nextFillup.odometer - previousForNext.odometer
+          const newMpg = milesDriven > 0
+            ? Math.round((milesDriven / nextFillup.gallons) * 100) / 100
+            : null
+
+          await prisma.fillup.update({
+            where: { id: nextFillup.id },
+            data: { mpg: newMpg }
+          })
+        } else {
+          // No previous full fillup, set mpg to null
+          await prisma.fillup.update({
+            where: { id: nextFillup.id },
+            data: { mpg: null }
+          })
+        }
+      }
+    }
 
     return NextResponse.json({
       id: updatedFillup.id,
