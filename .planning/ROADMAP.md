@@ -2,7 +2,8 @@
 
 ## Milestones
 
-- [v1.0 MVP](milestones/v1.0-ROADMAP.md) — Phases 1-8 (shipped 2026-01-14)
+- ✅ [v1.0 MVP](milestones/v1.0-ROADMAP.md) — Phases 1-8 (shipped 2026-01-14)
+- 🚧 **v1.1 Polish & Reliability** — Phases 9-13 (in progress)
 
 ## Completed Milestones
 
@@ -24,6 +25,61 @@
 
 </details>
 
+### 🚧 v1.1 Polish & Reliability (In Progress)
+
+**Milestone Goal:** Fix UI issues, add theme system, fix PWA/offline functionality, and add profile management.
+
+#### Phase 9: UI/Layout Fixes
+
+**Goal**: Fix fillup button covered by bottom menu, vehicles icon appearance on mobile, and other layout issues
+**Depends on**: v1.0 complete
+**Research**: Unlikely (internal CSS/layout patterns)
+**Plans**: TBD
+
+Plans:
+- [ ] 09-01: TBD (run /gsd:plan-phase 9 to break down)
+
+#### Phase 10: Theme System
+
+**Goal**: Add user-selectable dark/light theme with persistence, unify color scheme across all pages
+**Depends on**: Phase 9
+**Research**: Unlikely (internal React state + CSS patterns)
+**Plans**: TBD
+
+Plans:
+- [ ] 10-01: TBD
+
+#### Phase 11: PWA & Offline
+
+**Goal**: Fix install prompt not appearing, enable offline fillup queuing with automatic sync when back online
+**Depends on**: Phase 10
+**Research**: Likely (PWA/service worker APIs, offline sync patterns)
+**Research topics**: Service worker lifecycle, install prompt events, IndexedDB for offline storage, background sync API
+**Plans**: TBD
+
+Plans:
+- [ ] 11-01: TBD
+
+#### Phase 12: MPG Recalculation
+
+**Goal**: Recompute MPG on edit for current and next fillups, add manual recompute button
+**Depends on**: Phase 11
+**Research**: Unlikely (internal database logic)
+**Plans**: TBD
+
+Plans:
+- [ ] 12-01: TBD
+
+#### Phase 13: Profile Page
+
+**Goal**: Build profile page with theme preference, first/last name, email display, and password change option
+**Depends on**: Phase 12
+**Research**: Unlikely (internal CRUD patterns)
+**Plans**: TBD
+
+Plans:
+- [ ] 13-01: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -36,3 +92,8 @@
 | 6. History & Analytics | v1.0 | 3/3 | Complete | 2026-01-13 |
 | 7. PWA Polish | v1.0 | 3/3 | Complete | 2026-01-14 |
 | 8. CSV Import | v1.0 | 2/2 | Complete | 2026-01-14 |
+| 9. UI/Layout Fixes | v1.1 | 0/? | Not started | - |
+| 10. Theme System | v1.1 | 0/? | Not started | - |
+| 11. PWA & Offline | v1.1 | 0/? | Not started | - |
+| 12. MPG Recalculation | v1.1 | 0/? | Not started | - |
+| 13. Profile Page | v1.1 | 0/? | Not started | - |

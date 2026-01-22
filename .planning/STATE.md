@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-01-14)
 
 **Core value:** Quick fillup entry — fast, frictionless logging from the phone at the pump
-**Current focus:** v1.0 shipped — ready for user feedback
+**Current focus:** v1.1 Polish & Reliability — fixing UI issues, adding theme system, fixing PWA/offline
 
 ## Current Position
 
-Milestone: v1.0 MVP — SHIPPED
-Phase: 8 of 8 (all complete)
-Plan: 23 of 23 (all complete)
-Status: Milestone archived
-Last activity: 2026-01-14 — v1.0 milestone complete
+Milestone: v1.1 Polish & Reliability
+Phase: 9 of 13 (UI/Layout Fixes)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-01-22 — Milestone v1.1 created
 
-Progress: SHIPPED
+Progress: ░░░░░░░░░░ 0%
 
 ## Performance Metrics
 
@@ -42,11 +42,12 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-14
-Stopped at: v1.0 milestone archived
+Last session: 2026-01-22
+Stopped at: Milestone v1.1 initialization
 Resume file: None
 
 ## Roadmap Evolution
 
 - v1.0 MVP shipped with 8 phases, 23 plans
 - Milestone archived to .planning/milestones/v1.0-ROADMAP.md
+- Milestone v1.1 created: Polish & Reliability, 5 phases (Phase 9-13)
