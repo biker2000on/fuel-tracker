@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   addToQueue,
   getQueue,
-  removeFromQueue,
   getQueueCount,
   type PendingFillup
 } from '@/lib/offlineDb'
+import { syncPendingFillups, type SyncResult, type SyncOptions } from '@/lib/syncEngine'
 
 interface FillupData {
   vehicleId: string
@@ -24,10 +24,8 @@ interface FillupData {
   country: string | null
 }
 
-interface SyncResult {
-  success: boolean
-  pendingId: string
-  error?: string
+interface UseOfflineQueueOptions {
+  onSyncComplete?: (syncedCount: number, results: SyncResult[]) => void
 }
 
 interface UseOfflineQueueReturn {
@@ -35,20 +33,26 @@ interface UseOfflineQueueReturn {
   pendingCount: number
   isSyncing: boolean
   lastSyncError: string | null
+  lastSyncTime: Date | null
   queueFillup: (data: FillupData) => Promise<PendingFillup>
-  syncQueue: () => Promise<SyncResult[]>
+  syncQueue: (options?: SyncOptions) => Promise<{ syncedCount: number; results: SyncResult[] }>
+  getPendingFillups: () => Promise<PendingFillup[]>
+  refreshPendingCount: () => Promise<void>
 }
 
-export function useOfflineQueue(): UseOfflineQueueReturn {
+export function useOfflineQueue(options?: UseOfflineQueueOptions): UseOfflineQueueReturn {
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   )
   const [pendingCount, setPendingCount] = useState<number>(0)
   const [isSyncing, setIsSyncing] = useState<boolean>(false)
   const [lastSyncError, setLastSyncError] = useState<string | null>(null)
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
 
   // Track if sync is already in progress to prevent duplicate syncs
   const syncInProgress = useRef(false)
+  // Track previous online state for detecting reconnection
+  const wasOfflineRef = useRef(false)
 
   // Update pending count from IndexedDB
   const refreshPendingCount = useCallback(async () => {
@@ -60,78 +64,68 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
     }
   }, [])
 
-  // Sync all queued fillups to the server
-  const syncQueue = useCallback(async (): Promise<SyncResult[]> => {
-    if (syncInProgress.current || !isOnline) {
+  // Get all pending fillups for UI display
+  const getPendingFillups = useCallback(async (): Promise<PendingFillup[]> => {
+    try {
+      return await getQueue()
+    } catch {
+      console.error('Failed to get pending fillups')
       return []
+    }
+  }, [])
+
+  // Sync all queued fillups to the server using syncEngine
+  const syncQueue = useCallback(async (
+    syncOptions?: SyncOptions
+  ): Promise<{ syncedCount: number; results: SyncResult[] }> => {
+    if (syncInProgress.current || !isOnline) {
+      return { syncedCount: 0, results: [] }
     }
 
     syncInProgress.current = true
     setIsSyncing(true)
     setLastSyncError(null)
 
-    const results: SyncResult[] = []
-
     try {
-      const pendingFillups = await getQueue()
+      const { results, syncedCount } = await syncPendingFillups(syncOptions)
 
-      for (const pending of pendingFillups) {
-        try {
-          const response = await fetch('/api/fillups', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(pending.data)
-          })
-
-          if (response.ok) {
-            // Successfully synced - remove from queue
-            await removeFromQueue(pending.id)
-            results.push({ success: true, pendingId: pending.id })
-          } else {
-            const errorData = await response.json().catch(() => ({}))
-            const errorMessage = errorData.error || `Server error: ${response.status}`
-            results.push({
-              success: false,
-              pendingId: pending.id,
-              error: errorMessage
-            })
-            // Keep in queue for retry later
-            setLastSyncError(errorMessage)
-          }
-        } catch (error) {
-          // Network error - keep in queue for retry
-          const errorMessage = error instanceof Error
-            ? error.message
-            : 'Network error during sync'
-          results.push({
-            success: false,
-            pendingId: pending.id,
-            error: errorMessage
-          })
-          setLastSyncError(errorMessage)
-        }
+      // Check for any errors in results
+      const failedResults = results.filter(r => !r.success)
+      if (failedResults.length > 0) {
+        setLastSyncError(failedResults[0].error || 'Some fillups failed to sync')
       }
+
+      // Update last sync time
+      setLastSyncTime(new Date())
 
       // Refresh count after sync
       await refreshPendingCount()
+
+      // Call completion callback if provided
+      if (options?.onSyncComplete && syncedCount > 0) {
+        options.onSyncComplete(syncedCount, results)
+      }
+
+      return { syncedCount, results }
     } finally {
       syncInProgress.current = false
       setIsSyncing(false)
     }
-
-    return results
-  }, [isOnline, refreshPendingCount])
+  }, [isOnline, refreshPendingCount, options])
 
   // Handle online/offline events
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true)
-      // Auto-sync when connection restored
-      syncQueue()
+      // Auto-sync when connection restored (if was offline)
+      if (wasOfflineRef.current) {
+        syncQueue()
+      }
     }
 
     const handleOffline = () => {
       setIsOnline(false)
+      wasOfflineRef.current = true
     }
 
     window.addEventListener('online', handleOnline)
@@ -158,7 +152,10 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
     pendingCount,
     isSyncing,
     lastSyncError,
+    lastSyncTime,
     queueFillup,
-    syncQueue
+    syncQueue,
+    getPendingFillups,
+    refreshPendingCount
   }
 }
