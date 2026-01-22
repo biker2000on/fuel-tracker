@@ -2,8 +2,8 @@
 
 ## Milestones
 
-- ✅ [v1.0 MVP](milestones/v1.0-ROADMAP.md) — Phases 1-8 (shipped 2026-01-14)
-- 🚧 **v1.1 Polish & Reliability** — Phases 9-13 (in progress)
+- [v1.0 MVP](milestones/v1.0-ROADMAP.md) — Phases 1-8 (shipped 2026-01-14)
+- **v1.1 Polish & Reliability** — Phases 9-13 (in progress)
 
 ## Completed Milestones
 
@@ -25,11 +25,11 @@
 
 </details>
 
-### 🚧 v1.1 Polish & Reliability (In Progress)
+### v1.1 Polish & Reliability (In Progress)
 
 **Milestone Goal:** Fix UI issues, add theme system, fix PWA/offline functionality, and add profile management.
 
-#### Phase 9: UI/Layout Fixes ✓
+#### Phase 9: UI/Layout Fixes
 
 **Goal**: Fix fillup button covered by bottom menu, vehicles icon appearance on mobile, and other layout issues
 **Depends on**: v1.0 complete
@@ -38,7 +38,7 @@
 Plans:
 - [x] 09-01: UI/Layout Fixes — fixed button positioning, vehicles icon
 
-#### Phase 10: Theme System ✓
+#### Phase 10: Theme System
 
 **Goal**: Add user-selectable dark/light theme with persistence, unify color scheme across all pages
 **Depends on**: Phase 9
@@ -52,12 +52,13 @@ Plans:
 
 **Goal**: Fix install prompt not appearing, enable offline fillup queuing with automatic sync when back online
 **Depends on**: Phase 10
-**Research**: Likely (PWA/service worker APIs, offline sync patterns)
-**Research topics**: Service worker lifecycle, install prompt events, IndexedDB for offline storage, background sync API
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Profile page with PWA install button
+- [ ] 11-02-PLAN.md — Offline context and connection status indicators
+- [ ] 11-03-PLAN.md — Enhanced sync engine with retry/backoff and pending fillup display
+- [ ] 11-04-PLAN.md — Data caching for offline viewing and conflict resolution
 
 #### Phase 12: MPG Recalculation
 
@@ -93,6 +94,6 @@ Plans:
 | 8. CSV Import | v1.0 | 2/2 | Complete | 2026-01-14 |
 | 9. UI/Layout Fixes | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 10. Theme System | v1.1 | 2/2 | Complete | 2026-01-22 |
-| 11. PWA & Offline | v1.1 | 0/? | Not started | - |
+| 11. PWA & Offline | v1.1 | 0/4 | Not started | - |
 | 12. MPG Recalculation | v1.1 | 0/? | Not started | - |
 | 13. Profile Page | v1.1 | 0/? | Not started | - |
