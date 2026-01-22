@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-14)
 ## Current Position
 
 Milestone: v1.1 Polish & Reliability
-Phase: 11.1 of 13 (Infinite Scroll on Vehicles Fillups Page)
+Phase: 12 of 13 (MPG Recalculation)
 Plan: 1 of 1
-Status: Phase 11.1 complete (verified)
-Last activity: 2026-01-22 — Phase 11.1 verified, all 5/5 must-haves passed
+Status: Phase 12 complete
+Last activity: 2026-01-22 — Completed 12-01-PLAN.md (MPG Recalculation)
 
-Progress: ███████░░░ 70% (3.5/5 phases)
+Progress: ████████░░ 80% (4/5 phases)
 
 ## Performance Metrics
 
@@ -43,6 +43,8 @@ All decisions logged in PROJECT.md Key Decisions table with outcomes marked.
 | 11.1-01 | Triple-guard pattern for IntersectionObserver | Prevents duplicate API calls during scroll |
 | 11.1-01 | 200px rootMargin preload | Starts loading before sentinel visible |
 | 11.1-01 | Skip link only for >20 fillups | Avoids clutter for small lists |
+| 12-01 | Cascade MPG recalculation on odometer change | Next fillup's MPG depends on current fillup's odometer |
+| 12-01 | Exclude current fillup when finding previous | Prevents self-reference in MPG calculation |
 
 ### Deferred Issues
 
@@ -54,8 +56,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-22T17:55:43Z
-Stopped at: Completed 11.1-01-PLAN.md (Infinite Scroll on Vehicles Fillups Page)
+Last session: 2026-01-22T18:30:00Z
+Stopped at: Completed 12-01-PLAN.md (MPG Recalculation)
 Resume file: None
 
 ## Roadmap Evolution
@@ -64,3 +66,4 @@ Resume file: None
 - Milestone archived to .planning/milestones/v1.0-ROADMAP.md
 - Milestone v1.1 created: Polish & Reliability, 5 phases (Phase 9-13)
 - Phase 11.1 inserted after Phase 11: Infinite scroll on vehicles fillups page (URGENT)
+- Phase 12 complete: MPG recalculation on edit with manual trigger
