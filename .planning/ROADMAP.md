@@ -38,16 +38,15 @@
 Plans:
 - [x] 09-01: UI/Layout Fixes — fixed button positioning, vehicles icon
 
-#### Phase 10: Theme System
+#### Phase 10: Theme System ✓
 
 **Goal**: Add user-selectable dark/light theme with persistence, unify color scheme across all pages
 **Depends on**: Phase 9
-**Research**: Unlikely (internal React state + CSS patterns)
-**Plans**: 2 plans
+**Completed**: 2026-01-22
 
 Plans:
-- [ ] 10-01-PLAN.md — Theme infrastructure (context, localStorage, CSS variables)
-- [ ] 10-02-PLAN.md — Theme toggle and auth page dark mode styles
+- [x] 10-01: Theme infrastructure — context, localStorage, CSS variables
+- [x] 10-02: Theme toggle and dark mode styles across all pages
 
 #### Phase 11: PWA & Offline
 
@@ -93,7 +92,7 @@ Plans:
 | 7. PWA Polish | v1.0 | 3/3 | Complete | 2026-01-14 |
 | 8. CSV Import | v1.0 | 2/2 | Complete | 2026-01-14 |
 | 9. UI/Layout Fixes | v1.1 | 1/1 | Complete | 2026-01-22 |
-| 10. Theme System | v1.1 | 0/2 | Not started | - |
+| 10. Theme System | v1.1 | 2/2 | Complete | 2026-01-22 |
 | 11. PWA & Offline | v1.1 | 0/? | Not started | - |
 | 12. MPG Recalculation | v1.1 | 0/? | Not started | - |
 | 13. Profile Page | v1.1 | 0/? | Not started | - |
