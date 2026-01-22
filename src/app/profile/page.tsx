@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { InstallButton } from '@/components/InstallButton'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function ProfilePage() {
   const { data: session, status, update: updateSession } = useSession()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
 
   // Profile editing state
   const [name, setName] = useState('')
@@ -199,12 +201,42 @@ export default function ProfilePage() {
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
             Preferences
           </h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-900 dark:text-white">Theme</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Use the theme button in the navigation bar
-              </p>
+          <div>
+            <p className="text-gray-900 dark:text-white">Theme</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              Choose your preferred appearance
+            </p>
+            <div className="inline-flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+              <button
+                onClick={() => setTheme('light')}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  theme === 'light'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                Light
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-x border-gray-300 dark:border-gray-600 ${
+                  theme === 'dark'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                Dark
+              </button>
+              <button
+                onClick={() => setTheme('system')}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  theme === 'system'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                System
+              </button>
             </div>
           </div>
         </div>
