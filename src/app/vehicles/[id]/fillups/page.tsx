@@ -72,6 +72,7 @@ function VehicleFillupsContent() {
   const [endDate, setEndDate] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [isSyncingNow, setIsSyncingNow] = useState(false)
+  const [recalculatingId, setRecalculatingId] = useState<string | null>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   // Fetch pending fillups from IndexedDB
@@ -295,6 +296,31 @@ function VehicleFillupsContent() {
       setError('Failed to sync fillups')
     } finally {
       setIsSyncingNow(false)
+    }
+  }
+
+  async function handleRecalculateMpg(fillupId: string) {
+    setRecalculatingId(fillupId)
+    try {
+      const response = await fetch(`/api/fillups/${fillupId}/recalculate`, {
+        method: 'POST'
+      })
+
+      if (response.ok) {
+        const updatedFillup = await response.json()
+        // Update the fillup in state with new MPG
+        setFillups(prev => prev.map(f =>
+          f.id === fillupId ? { ...f, mpg: updatedFillup.mpg } : f
+        ))
+        setSuccessMessage('MPG recalculated successfully')
+      } else {
+        const data = await response.json()
+        setError(data.error || 'Failed to recalculate MPG')
+      }
+    } catch {
+      setError('Failed to recalculate MPG')
+    } finally {
+      setRecalculatingId(null)
     }
   }
 
@@ -757,6 +783,16 @@ function VehicleFillupsContent() {
                             >
                               Edit
                             </Link>
+                            {fillup.isFull && (
+                              <button
+                                type="button"
+                                onClick={() => handleRecalculateMpg(fillup.id)}
+                                disabled={recalculatingId === fillup.id}
+                                className="flex-1 py-2 px-3 text-center text-sm bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-600 dark:text-green-400 rounded-md transition-colors disabled:opacity-50"
+                              >
+                                {recalculatingId === fillup.id ? 'Recalculating...' : 'Recalculate MPG'}
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleDelete(fillup.id, false)}
