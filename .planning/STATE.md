@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-14)
 
 Milestone: v1.1 Polish & Reliability
 Phase: 11 of 13 (PWA & Offline)
-Plan: 3 of 4
-Status: In progress
-Last activity: 2026-01-22 — Completed 11-03-PLAN.md
+Plan: 4 of 4
+Status: Phase complete
+Last activity: 2026-01-22 — Completed 11-04-PLAN.md
 
-Progress: █████░░░░░ 60% (3/5 phases)
+Progress: ██████░░░░ 65% (3.25/5 phases)
 
 ## Performance Metrics
 
@@ -37,6 +37,9 @@ All decisions logged in PROJECT.md Key Decisions table with outcomes marked.
 | 11-03 | Sequential sync processing | Maintains FIFO order for chronological accuracy |
 | 11-03 | Don't retry on 4xx errors | Client errors should be fixed, not retried |
 | 11-03 | Estimated MPG with ~ prefix | Visual indicator that value is calculated locally |
+| 11-04 | Cache 10 fillups per vehicle | Balances storage limits vs useful history |
+| 11-04 | Conflict detection on 50mi odometer proximity | Catches duplicates without over-flagging |
+| 11-04 | Three resolution options | Gives user control over conflict handling |
 
 ### Deferred Issues
 
@@ -49,7 +52,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-01-22
-Stopped at: Completed 11-03-PLAN.md (Sync Engine & Pending UI)
+Stopped at: Completed 11-04-PLAN.md (Data Caching & Conflict Resolution)
 Resume file: None
 
 ## Roadmap Evolution
