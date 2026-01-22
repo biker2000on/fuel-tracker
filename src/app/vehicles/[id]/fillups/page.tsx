@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
@@ -72,6 +72,7 @@ function VehicleFillupsContent() {
   const [endDate, setEndDate] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [isSyncingNow, setIsSyncingNow] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   // Fetch pending fillups from IndexedDB
   const fetchPendingFillups = useCallback(async () => {
@@ -105,6 +106,31 @@ function VehicleFillupsContent() {
       return () => clearTimeout(timer)
     }
   }, [successMessage])
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Triple-guard: intersecting + has more + not already loading
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMore()
+        }
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '200px' // Start loading 200px before sentinel visible
+      }
+    )
+
+    observer.observe(sentinel)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [hasMore, isLoadingMore]) // loadMore is stable from closure
 
   async function fetchVehicle() {
     try {
@@ -731,17 +757,21 @@ function VehicleFillupsContent() {
               )
             })}
 
-            {/* Load More Button */}
+            {/* Infinite scroll sentinel */}
             {hasMore && (
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={loadMore}
-                  disabled={isLoadingMore}
-                  className="py-2 px-6 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md transition-colors disabled:opacity-50"
-                >
-                  {isLoadingMore ? 'Loading...' : 'Load More'}
-                </button>
+              <div ref={sentinelRef} className="mt-4 py-4 text-center">
+                {isLoadingMore && (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    Loading more fillups...
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* End of list indicator */}
+            {!hasMore && displayFillups.length > 20 && (
+              <div className="mt-4 py-2 text-center text-sm text-gray-500 dark:text-gray-400">
+                All fillups loaded
               </div>
             )}
           </div>
