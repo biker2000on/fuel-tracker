@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, useCallback, use } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useOffline } from '@/contexts/OfflineContext'
+import {
+  getCachedVehicles,
+  cacheFillups,
+  getCachedFillups,
+  getCacheAge,
+  type CachedVehicle,
+  type CachedFillup
+} from '@/lib/offlineDb'
 
 interface Vehicle {
   id: string
@@ -68,6 +77,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   const { id } = use(params)
   const { status } = useSession()
   const router = useRouter()
+  const { isOnline } = useOffline()
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [fillups, setFillups] = useState<Fillup[]>([])
   const [totalFillupCount, setTotalFillupCount] = useState(0)
@@ -78,21 +88,55 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isFromCache, setIsFromCache] = useState(false)
+  const [cacheAge, setCacheAge] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-      return
+  // Load cached vehicle data
+  const loadCachedVehicle = useCallback(async () => {
+    const cachedVehicles = await getCachedVehicles()
+    if (cachedVehicles) {
+      const cachedVehicle = cachedVehicles.find(v => v.id === id)
+      if (cachedVehicle) {
+        // Convert CachedVehicle to Vehicle type
+        setVehicle({
+          ...cachedVehicle,
+          groupId: cachedVehicle.groupId || '',
+          groupName: cachedVehicle.groupName || 'Unknown'
+        })
+        setIsFromCache(true)
+        const age = await getCacheAge('cached-vehicles')
+        setCacheAge(age)
+        return true
+      }
     }
+    return false
+  }, [id])
 
-    if (status === 'authenticated') {
-      fetchVehicle()
-      fetchFillups()
-      fetchStats()
+  // Load cached fillups
+  const loadCachedFillups = useCallback(async () => {
+    const cachedFillups = await getCachedFillups(id)
+    if (cachedFillups) {
+      // Convert CachedFillup to Fillup type
+      const fillupsData: Fillup[] = cachedFillups.map(f => ({
+        id: f.id,
+        date: f.date,
+        gallons: f.gallons,
+        totalCost: f.totalCost,
+        mpg: f.mpg,
+        city: f.city,
+        state: f.state
+      }))
+      setFillups(fillupsData)
+      setTotalFillupCount(cachedFillups.length)
+      setIsFromCache(true)
+      const age = await getCacheAge(`cached-fillups-${id}`)
+      if (age !== null) setCacheAge(age)
+      return true
     }
-  }, [status, router, id])
+    return false
+  }, [id])
 
-  async function fetchVehicle() {
+  const fetchVehicle = useCallback(async () => {
     try {
       const response = await fetch(`/api/vehicles/${id}`)
       if (!response.ok) {
@@ -108,34 +152,67 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
       }
       const data = await response.json()
       setVehicle(data)
+      setIsFromCache(false)
+      setCacheAge(null)
     } catch {
-      setError('Failed to load vehicle')
+      // If network fails and we're offline, try cache
+      if (!isOnline) {
+        const loaded = await loadCachedVehicle()
+        if (!loaded) {
+          setError('Vehicle not available offline')
+        }
+      } else {
+        setError('Failed to load vehicle')
+      }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [id, isOnline, loadCachedVehicle])
 
-  async function fetchFillups() {
+  const fetchFillups = useCallback(async () => {
     try {
-      const response = await fetch(`/api/fillups?vehicleId=${id}&limit=3`)
+      const response = await fetch(`/api/fillups?vehicleId=${id}&limit=10`)
       if (response.ok) {
         const data = await response.json()
-        setFillups(data.fillups)
-        // Also fetch full count
-        const countResponse = await fetch(`/api/fillups?vehicleId=${id}&limit=500`)
-        if (countResponse.ok) {
-          const countData = await countResponse.json()
-          setTotalFillupCount(countData.fillups.length)
+        const fillupList = data.fillups || []
+        setFillups(fillupList.slice(0, 3)) // Display first 3
+        setTotalFillupCount(fillupList.length)
+        setIsFromCache(false)
+
+        // Cache the fillups for offline use
+        if (fillupList.length > 0) {
+          const fillupsToCache: CachedFillup[] = fillupList.map((f: Fillup & { pricePerGallon?: number; odometer?: number }) => ({
+            id: f.id,
+            date: f.date,
+            gallons: f.gallons,
+            totalCost: f.totalCost,
+            pricePerGallon: f.pricePerGallon || f.totalCost / f.gallons,
+            odometer: f.odometer || 0,
+            mpg: f.mpg,
+            city: f.city,
+            state: f.state
+          }))
+          await cacheFillups(id, fillupsToCache)
         }
       }
     } catch {
-      // Silently fail - fillups are supplementary
+      // If network fails and we're offline, try cache
+      if (!isOnline) {
+        await loadCachedFillups()
+      }
+      // Silently fail otherwise - fillups are supplementary
     } finally {
       setIsLoadingFillups(false)
     }
-  }
+  }, [id, isOnline, loadCachedFillups])
 
-  async function fetchStats() {
+  const fetchStats = useCallback(async () => {
+    // Stats require network - not cached
+    if (!isOnline) {
+      setIsLoadingStats(false)
+      return
+    }
+
     try {
       const response = await fetch(`/api/vehicles/${id}/stats`)
       if (response.ok) {
@@ -147,6 +224,47 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setIsLoadingStats(false)
     }
+  }, [id, isOnline])
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login')
+      return
+    }
+
+    if (status === 'authenticated') {
+      if (isOnline) {
+        fetchVehicle()
+        fetchFillups()
+        fetchStats()
+      } else {
+        // Offline - load from cache
+        loadCachedVehicle().then(loaded => {
+          if (!loaded) {
+            setError('Vehicle not available offline')
+          }
+          setIsLoading(false)
+        })
+        loadCachedFillups().then(() => {
+          setIsLoadingFillups(false)
+        })
+        setIsLoadingStats(false)
+      }
+    }
+  }, [status, router, isOnline, fetchVehicle, fetchFillups, fetchStats, loadCachedVehicle, loadCachedFillups])
+
+  function formatCacheAge(ms: number | null): string {
+    if (ms === null) return ''
+    const minutes = Math.floor(ms / 60000)
+    if (minutes < 1) return 'just now'
+    if (minutes === 1) return '1 minute ago'
+    if (minutes < 60) return `${minutes} minutes ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours === 1) return '1 hour ago'
+    if (hours < 24) return `${hours} hours ago`
+    const days = Math.floor(hours / 24)
+    if (days === 1) return '1 day ago'
+    return `${days} days ago`
   }
 
   function getMpgColor(mpg: number, best: number | null, worst: number | null): string {
@@ -248,6 +366,27 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           </Link>
         </div>
 
+        {/* Offline/Cache Notice */}
+        {isFromCache && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                  Showing cached data
+                </p>
+                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                  {cacheAge !== null
+                    ? `Last updated ${formatCacheAge(cacheAge)}. Statistics unavailable offline.`
+                    : 'Statistics unavailable offline.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           {/* Photo */}
           <div className="aspect-video relative bg-gray-100 dark:bg-gray-700">
@@ -330,24 +469,32 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
 
             {/* Action Buttons */}
             <div className="mt-6 flex gap-3">
-              <Link
-                href={`/vehicles/${id}/edit`}
-                className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md text-center transition-colors"
-              >
-                Edit
-              </Link>
-              <Link
-                href={`/import?vehicleId=${id}`}
-                className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md text-center transition-colors"
-              >
-                Import
-              </Link>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="flex-1 py-2 px-4 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-200 font-medium rounded-md transition-colors"
-              >
-                Delete
-              </button>
+              {isOnline ? (
+                <>
+                  <Link
+                    href={`/vehicles/${id}/edit`}
+                    className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md text-center transition-colors"
+                  >
+                    Edit
+                  </Link>
+                  <Link
+                    href={`/import?vehicleId=${id}`}
+                    className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md text-center transition-colors"
+                  >
+                    Import
+                  </Link>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="flex-1 py-2 px-4 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-200 font-medium rounded-md transition-colors"
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  Edit, Import, and Delete require network connection
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -358,7 +505,19 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
             Statistics
           </h2>
 
-          {isLoadingStats ? (
+          {isFromCache ? (
+            <div className="text-center py-6">
+              <svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <p className="text-gray-500 dark:text-gray-400">
+                Statistics not available offline
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Connect to view full statistics
+              </p>
+            </div>
+          ) : isLoadingStats ? (
             <div className="space-y-4">
               <div className="animate-pulse">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2"></div>
