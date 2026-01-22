@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-14)
 ## Current Position
 
 Milestone: v1.1 Polish & Reliability
-Phase: 11 of 13 (PWA & Offline)
-Plan: 4 of 4
-Status: Phase 11 complete (verified)
-Last activity: 2026-01-22 — Phase 11 verified, all 11/11 must-haves passed
+Phase: 11.1 of 13 (Infinite Scroll on Vehicles Fillups Page)
+Plan: 1 of 1
+Status: Phase 11.1 complete
+Last activity: 2026-01-22 — Completed 11.1-01-PLAN.md (Infinite Scroll implementation)
 
-Progress: ██████░░░░ 65% (3.25/5 phases)
+Progress: ███████░░░ 67% (3.35/5 phases)
 
 ## Performance Metrics
 
@@ -40,6 +40,9 @@ All decisions logged in PROJECT.md Key Decisions table with outcomes marked.
 | 11-04 | Cache 10 fillups per vehicle | Balances storage limits vs useful history |
 | 11-04 | Conflict detection on 50mi odometer proximity | Catches duplicates without over-flagging |
 | 11-04 | Three resolution options | Gives user control over conflict handling |
+| 11.1-01 | Triple-guard pattern for IntersectionObserver | Prevents duplicate API calls during scroll |
+| 11.1-01 | 200px rootMargin preload | Starts loading before sentinel visible |
+| 11.1-01 | Skip link only for >20 fillups | Avoids clutter for small lists |
 
 ### Deferred Issues
 
@@ -51,8 +54,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-22
-Stopped at: Completed 11-04-PLAN.md (Data Caching & Conflict Resolution)
+Last session: 2026-01-22T17:55:43Z
+Stopped at: Completed 11.1-01-PLAN.md (Infinite Scroll on Vehicles Fillups Page)
 Resume file: None
 
 ## Roadmap Evolution
@@ -60,3 +63,4 @@ Resume file: None
 - v1.0 MVP shipped with 8 phases, 23 plans
 - Milestone archived to .planning/milestones/v1.0-ROADMAP.md
 - Milestone v1.1 created: Polish & Reliability, 5 phases (Phase 9-13)
+- Phase 11.1 inserted after Phase 11: Infinite scroll on vehicles fillups page (URGENT)
