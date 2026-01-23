@@ -8,11 +8,21 @@ interface NetworkStatus {
 }
 
 export function useNetworkStatus(): NetworkStatus {
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  )
+  // Initialize to true to avoid hydration mismatch - SSR always assumes online
+  const [isOnline, setIsOnline] = useState<boolean>(true)
   const [wasOffline, setWasOffline] = useState<boolean>(false)
-  const previousOnlineRef = useRef<boolean>(isOnline)
+  const previousOnlineRef = useRef<boolean>(true)
+  const mountedRef = useRef<boolean>(false)
+
+  // Set correct initial value after mount to avoid hydration mismatch
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true
+      const online = navigator.onLine
+      setIsOnline(online)
+      previousOnlineRef.current = online
+    }
+  }, [])
 
   useEffect(() => {
     const handleOnline = () => {

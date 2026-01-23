@@ -57,8 +57,8 @@ export default function ProfilePage() {
         throw new Error(data.error || 'Failed to save profile')
       }
 
-      // Update session with new name
-      await updateSession({ name: name.trim() })
+      // Refresh session to get updated name from server
+      await updateSession()
       setIsEditing(false)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
