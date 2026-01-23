@@ -3,7 +3,7 @@
 ## Milestones
 
 - [v1.0 MVP](milestones/v1.0-ROADMAP.md) — Phases 1-8 (shipped 2026-01-14)
-- **v1.1 Polish & Reliability** — Phases 9-13 (in progress)
+- **v1.1 Polish & Reliability** — Phases 9-14 (in progress)
 
 ## Completed Milestones
 
@@ -88,6 +88,19 @@ Plans:
 - [ ] 13-01-PLAN.md — User profile and password change API endpoints
 - [ ] 13-02-PLAN.md — Profile page UI with edit form, theme selector, password change
 
+#### Phase 14: Fix PWA Install
+
+**Goal:** Fix PWA install prompt visibility on iOS and enhance manifest for Rich Install UI.
+**Depends on:** Phase 13
+**Plans:** 2 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Enhanced Manifest and iOS Metadata
+- [ ] 14-02-PLAN.md — Platform-Aware Install UI
+
+**Details:**
+Implements a two-tiered install strategy using `beforeinstallprompt` for supported browsers and a custom instructional UI for iOS/Safari users, while enhancing the manifest to meet modern "Rich Install" criteria.
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -106,3 +119,5 @@ Plans:
 | 11.1 Infinite Scroll | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 12. MPG Recalculation | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 13. Profile Page | v1.1 | 0/2 | Not started | - |
+| 14. Fix PWA Install | v1.1 | 0/0 | Not started | - |
+
