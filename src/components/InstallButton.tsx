@@ -2,14 +2,22 @@
 
 import { useState } from 'react'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
+import { IOSInstallGuide } from './IOSInstallGuide'
 
 export function InstallButton() {
-  const { canInstall, isInstalled, promptInstall } = useInstallPrompt()
+  const { canInstall, isInstalled, isIOS, platform, promptInstall } = useInstallPrompt()
   const [showSuccess, setShowSuccess] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
+  const [showIOSGuide, setShowIOSGuide] = useState(false)
 
   const handleInstall = async () => {
+    if (isIOS) {
+      setShowIOSGuide(!showIOSGuide)
+      return
+    }
+
     setIsInstalling(true)
+
     try {
       const success = await promptInstall()
       if (success) {
@@ -55,30 +63,52 @@ export function InstallButton() {
   // Can install - show install button
   if (canInstall) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
         <button
           onClick={handleInstall}
           disabled={isInstalling}
-          className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-green-600 hover:bg-green-500 disabled:bg-green-700 text-white font-semibold rounded-lg shadow-sm transition-colors"
+          className={`w-full flex items-center justify-center gap-3 py-4 px-6 font-semibold rounded-lg shadow-sm transition-colors ${
+            showIOSGuide 
+              ? 'bg-slate-200 dark:bg-slate-700 text-gray-900 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600'
+              : 'bg-green-600 hover:bg-green-500 disabled:bg-green-700 text-white'
+          }`}
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-            />
-          </svg>
-          {isInstalling ? 'Installing...' : 'Add to Home Screen'}
+          {isIOS ? (
+            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+          ) : (
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+          )}
+          {isInstalling ? 'Installing...' : isIOS ? (showIOSGuide ? 'Hide Instructions' : 'How to Install') : 'Add to Home Screen'}
         </button>
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-          Quick access at the pump
-        </p>
+
+        {showIOSGuide && (
+          <div className="animate-fade-in">
+            <IOSInstallGuide />
+          </div>
+        )}
+
+        {!showIOSGuide && (
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+            {isIOS ? 'Access this app quickly from your home screen' : 'Quick access at the pump'}
+          </p>
+        )}
+
 
         {/* Success Toast */}
         {showSuccess && (
