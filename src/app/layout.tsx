@@ -19,8 +19,9 @@ export const metadata: Metadata = {
   description: "Track fuel consumption across your vehicles",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Fuel Tracker",
+    startupImage: [],
   },
   icons: {
     apple: "/icons/apple-touch-icon.png",
