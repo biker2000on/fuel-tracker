@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-01-14)
 
 Milestone: v1.1 Polish & Reliability
 Phase: 14 of 14 (Fix PWA Install)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-01-22 — Completed 14-01-PLAN.md (Enhanced Manifest and iOS Metadata)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-01-22 — Completed 14-02-PLAN.md (Platform-Aware Install UI)
 
-Progress: █████████░ 94% (34/36 plans complete)
+Progress: █████████▉ 97% (35/36 plans complete)
 
 ## Performance Metrics
 
@@ -27,7 +27,7 @@ Progress: █████████░ 94% (34/36 plans complete)
 - Lines of code: ~19,800 TypeScript/TSX
 
 **v1.1 Milestone (In Progress):**
-- Total plans completed: 11
+- Total plans completed: 12
 - Current velocity: ~8 min per plan
 
 ## Accumulated Context
@@ -52,6 +52,8 @@ All decisions logged in PROJECT.md Key Decisions table with outcomes marked.
 | 13-01 | Name validation 1-100 chars | More flexible than vehicle names for display names |
 | 13-01 | Password change requires current verification | Security: prevents unauthorized password changes |
 | 14-01 | 1x1 PNG placeholders for screenshots | Meets manifest validation for Rich Install UI without needing actual assets yet |
+| 14-02 | iOS manual install instructions | Safari's 'Add to Home Screen' is the only way to install PWAs on iOS |
+| 14-02 | Platform detection in hook | Centralizing iOS detection in useInstallPrompt simplifies UI logic |
 
 ### Deferred Issues
 
