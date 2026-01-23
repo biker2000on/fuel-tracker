@@ -85,8 +85,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — User profile and password change API endpoints
-- [ ] 13-02-PLAN.md — Profile page UI with edit form, theme selector, password change
+- [x] 13-01: User profile and password change API endpoints
+- [ ] 13-02: Profile page UI with edit form, theme selector, password change
 
 #### Phase 14: Fix PWA Install
 
@@ -95,8 +95,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Enhanced Manifest and iOS Metadata
-- [ ] 14-02-PLAN.md — Platform-Aware Install UI
+- [x] 14-01: Enhanced Manifest and iOS Metadata
+- [ ] 14-02: Platform-Aware Install UI
 
 **Details:**
 Implements a two-tiered install strategy using `beforeinstallprompt` for supported browsers and a custom instructional UI for iOS/Safari users, while enhancing the manifest to meet modern "Rich Install" criteria.
@@ -118,6 +118,6 @@ Implements a two-tiered install strategy using `beforeinstallprompt` for support
 | 11. PWA & Offline | v1.1 | 4/4 | Complete | 2026-01-22 |
 | 11.1 Infinite Scroll | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 12. MPG Recalculation | v1.1 | 1/1 | Complete | 2026-01-22 |
-| 13. Profile Page | v1.1 | 0/2 | Not started | - |
-| 14. Fix PWA Install | v1.1 | 0/0 | Not started | - |
+| 13. Profile Page | v1.1 | 1/2 | In progress | 2026-01-22 |
+| 14. Fix PWA Install | v1.1 | 1/2 | In progress | 2026-01-22 |
 

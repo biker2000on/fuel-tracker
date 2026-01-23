@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-14)
 ## Current Position
 
 Milestone: v1.1 Polish & Reliability
-Phase: 13 of 13 (Profile Page)
-Plan: 1 of 2
+Phase: 14 of 14 (Fix PWA Install)
+Plan: 1 of 2 in current phase
 Status: In progress
-Last activity: 2026-01-22 — Completed 13-01-PLAN.md (User Profile APIs)
+Last activity: 2026-01-22 — Completed 14-01-PLAN.md (Enhanced Manifest and iOS Metadata)
 
-Progress: █████████░ 90% (4.5/5 phases)
+Progress: █████████░ 94% (34/36 plans complete)
 
 ## Performance Metrics
 
@@ -25,6 +25,10 @@ Progress: █████████░ 90% (4.5/5 phases)
 - Average per plan: ~6 min
 - Timeline: 2 days (2026-01-13 → 2026-01-14)
 - Lines of code: ~19,800 TypeScript/TSX
+
+**v1.1 Milestone (In Progress):**
+- Total plans completed: 11
+- Current velocity: ~8 min per plan
 
 ## Accumulated Context
 
@@ -47,6 +51,7 @@ All decisions logged in PROJECT.md Key Decisions table with outcomes marked.
 | 12-01 | Exclude current fillup when finding previous | Prevents self-reference in MPG calculation |
 | 13-01 | Name validation 1-100 chars | More flexible than vehicle names for display names |
 | 13-01 | Password change requires current verification | Security: prevents unauthorized password changes |
+| 14-01 | 1x1 PNG placeholders for screenshots | Meets manifest validation for Rich Install UI without needing actual assets yet |
 
 ### Deferred Issues
 
@@ -58,8 +63,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-01-22T19:03:00Z
-Stopped at: Completed 13-01-PLAN.md (User Profile APIs)
+Last session: 2026-01-22T21:08:15Z
+Stopped at: Completed 14-01-PLAN.md (Enhanced Manifest and iOS Metadata)
 Resume file: None
 
 ## Roadmap Evolution
@@ -70,3 +75,5 @@ Resume file: None
 - Phase 11.1 inserted after Phase 11: Infinite scroll on vehicles fillups page (URGENT)
 - Phase 12 complete: MPG recalculation on edit with manual trigger
 - Phase 13 in progress: Profile APIs complete, UI next
+- Phase 14 added: Fix PWA install
+
