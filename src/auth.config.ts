@@ -22,8 +22,17 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user
       const isAuthPage = nextUrl.pathname.startsWith('/login') ||
                          nextUrl.pathname.startsWith('/register')
+      
+      // Allow public access to PWA manifest and service worker
+      const isPublicAsset = nextUrl.pathname === '/manifest.json' || 
+                            nextUrl.pathname === '/sw.js' ||
+                            nextUrl.pathname.startsWith('/icons/') ||
+                            nextUrl.pathname.startsWith('/screenshots/')
+      
+      if (isPublicAsset) return true
 
       if (isAuthPage) {
+
         // Redirect logged-in users away from auth pages
         if (isLoggedIn) return Response.redirect(new URL('/', nextUrl))
         return true
