@@ -25,6 +25,7 @@ export const authConfig = {
       
       // Allow public access to PWA manifest and service worker
       const isPublicAsset = nextUrl.pathname === '/manifest.json' || 
+                            nextUrl.pathname === '/manifest.webmanifest' ||
                             nextUrl.pathname === '/sw.js' ||
                             nextUrl.pathname.startsWith('/icons/') ||
                             nextUrl.pathname.startsWith('/screenshots/')

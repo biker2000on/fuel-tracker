@@ -8,6 +8,7 @@ export default auth
 export const config = {
   matcher: [
     // Match all routes except static files and API auth routes
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|manifest.json|sw.js|icons|screenshots).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|manifest.json|manifest.webmanifest|sw.js|icons|screenshots).*)',
   ],
 }
+
