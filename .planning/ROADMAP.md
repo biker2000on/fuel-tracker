@@ -86,7 +86,7 @@ Plans:
 
 Plans:
 - [x] 13-01: User profile and password change API endpoints
-- [ ] 13-02: Profile page UI with edit form, theme selector, password change
+- [x] 13-02: Profile page UI with edit form, theme selector, password change
 
 #### Phase 14: Fix PWA Install
 
@@ -118,7 +118,7 @@ Implements a two-tiered install strategy using `beforeinstallprompt` for support
 | 11. PWA & Offline | v1.1 | 4/4 | Complete | 2026-01-22 |
 | 11.1 Infinite Scroll | v1.1 | 1/1 | Complete | 2026-01-22 |
 | 12. MPG Recalculation | v1.1 | 1/1 | Complete | 2026-01-22 |
-| 13. Profile Page | v1.1 | 1/2 | In progress | 2026-01-22 |
+| 13. Profile Page | v1.1 | 2/2 | Complete | 2026-01-22 |
 | 14. Fix PWA Install | v1.1 | 2/2 | Complete | 2026-01-22 |
 
 
