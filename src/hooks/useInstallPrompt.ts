@@ -21,6 +21,8 @@ interface UseInstallPromptReturn {
   canInstall: boolean
   isInstalled: boolean
   isStandalone: boolean
+  isIOS: boolean
+  platform: 'ios' | 'standard'
   promptInstall: () => Promise<boolean>
 }
 
@@ -28,8 +30,16 @@ export function useInstallPrompt(): UseInstallPromptReturn {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
 
   useEffect(() => {
+    // Detect iOS
+    const checkIOS = () => {
+      const userAgent = window.navigator.userAgent.toLowerCase()
+      return /iphone|ipad|ipod/.test(userAgent)
+    }
+    setIsIOS(checkIOS())
+
     // Check if running in standalone mode (installed PWA)
     const checkStandalone = () => {
       const isStandaloneMode =
@@ -43,6 +53,7 @@ export function useInstallPrompt(): UseInstallPromptReturn {
     }
 
     checkStandalone()
+
 
     // Listen for display mode changes
     const mediaQuery = window.matchMedia('(display-mode: standalone)')
@@ -95,9 +106,12 @@ export function useInstallPrompt(): UseInstallPromptReturn {
   }, [deferredPrompt])
 
   return {
-    canInstall: deferredPrompt !== null && !isInstalled,
+    canInstall: (deferredPrompt !== null || (isIOS && !isStandalone)) && !isInstalled,
     isInstalled,
     isStandalone,
+    isIOS,
+    platform: isIOS ? 'ios' : 'standard',
     promptInstall,
   }
 }
+
