@@ -219,9 +219,10 @@ export default function DashboardPage() {
         {/* Header Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Welcome, {userName}!
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Welcome, {userName}!
               </h1>
               {dashboardData && dashboardData.totals.totalVehicles > 0 && !isFromCache && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -233,6 +234,17 @@ export default function DashboardPage() {
                   {cachedVehicles.length} vehicle{cachedVehicles.length !== 1 ? 's' : ''} available offline
                 </p>
               )}
+              </div>
+              {/* Profile link - visible on desktop only (mobile uses bottom nav) */}
+              <Link
+                href="/profile"
+                className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                aria-label="Profile"
+              >
+                <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+              </Link>
             </div>
             {hasVehicles && (
               <Link
