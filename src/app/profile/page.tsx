@@ -6,11 +6,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { InstallButton } from '@/components/InstallButton'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useOffline } from '@/contexts/OfflineContext'
 
 export default function ProfilePage() {
   const { data: session, status, update: updateSession } = useSession()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+  const { isOnline, pendingCount } = useOffline()
+
 
   // Profile editing state
   const [name, setName] = useState('')
@@ -245,8 +248,37 @@ export default function ProfilePage() {
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
             App
           </h2>
-          <InstallButton />
+          <div className="space-y-4">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Version</span>
+              <span className="text-gray-900 dark:text-white font-medium">1.1.0</span>
+            </div>
+            
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 dark:text-gray-400">Connectivity</span>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-amber-500'}`} />
+                <span className="text-gray-900 dark:text-white font-medium">
+                  {isOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+            </div>
+
+            {pendingCount > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Sync Status</span>
+                <span className="text-amber-600 dark:text-amber-400 font-medium">
+                  {pendingCount} pending fillup{pendingCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+
+            <div className="pt-2">
+              <InstallButton />
+            </div>
+          </div>
         </div>
+
 
         {/* Preferences Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
