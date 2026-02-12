@@ -57,6 +57,9 @@ function NewFillupForm() {
   // Offline queue
   const { isOnline, pendingCount, isSyncing, queueFillup, syncQueue } = useOfflineQueue()
 
+  // Thousandths pricing state
+  const [defaultThousandths, setDefaultThousandths] = useState<number>(0)
+
   // Submit state
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -64,13 +67,22 @@ function NewFillupForm() {
 
   // Fetch vehicles on mount
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }
 
     if (status === 'authenticated') {
       fetchVehicles()
+      // Fetch thousandths preference
+      fetch('/api/user/profile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.defaultThousandths !== undefined) {
+            setDefaultThousandths(data.defaultThousandths)
+          }
+        })
+        .catch(() => {})
       // Start location request immediately
       if (locationSupported) {
         requestLocation()
@@ -99,6 +111,20 @@ function NewFillupForm() {
     }
   }, [latitude, longitude, geocodedLocation, isGeocoding])
 
+  // Fetch user's thousandths pricing preference
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetch('/api/user/profile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.defaultThousandths !== undefined) {
+            setDefaultThousandths(data.defaultThousandths)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [status])
+
   async function fetchVehicles() {
     try {
       const response = await fetch('/api/vehicles')
@@ -122,9 +148,23 @@ function NewFillupForm() {
     setGeocodedLocation(null)
   }, [])
 
+  // Calculate effective price with thousandths adjustment
+  const effectivePrice = (() => {
+    if (!pricePerGallon) return null
+    const ppg = parseFloat(pricePerGallon)
+    if (isNaN(ppg)) return null
+    const decimalPlaces = pricePerGallon.includes('.')
+      ? pricePerGallon.split('.')[1]?.length || 0
+      : 0
+    if (defaultThousandths > 0 && decimalPlaces <= 2) {
+      return Math.round((ppg + defaultThousandths) * 1000) / 1000
+    }
+    return ppg
+  })()
+
   // Calculate total cost
-  const totalCost = gallons && pricePerGallon
-    ? (parseFloat(gallons) * parseFloat(pricePerGallon)).toFixed(2)
+  const totalCost = gallons && effectivePrice
+    ? (parseFloat(gallons) * effectivePrice).toFixed(2)
     : null
 
   async function handleSubmit(e: React.FormEvent) {
@@ -163,6 +203,7 @@ function NewFillupForm() {
       date: new Date(date).toISOString(),
       gallons: gallonsNum,
       pricePerGallon: priceNum,
+      pricePerGallonRaw: pricePerGallon,
       odometer: odometerNum,
       isFull,
       notes: notes.trim() || null,
@@ -437,6 +478,21 @@ function NewFillupForm() {
                   className="w-full pl-8 pr-4 py-3 text-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
+              {/* Thousandths adjustment hint */}
+              {defaultThousandths > 0 && pricePerGallon && (() => {
+                const decimalPlaces = pricePerGallon.includes('.')
+                  ? pricePerGallon.split('.')[1]?.length || 0
+                  : 0
+                if (decimalPlaces <= 2) {
+                  const adjusted = (parseFloat(pricePerGallon) + defaultThousandths).toFixed(3)
+                  return (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Effective price: ${adjusted}/gal (includes +${defaultThousandths.toFixed(3)})
+                    </p>
+                  )
+                }
+                return null
+              })()}
             </div>
 
             {/* Total Cost Display */}
@@ -445,6 +501,19 @@ function NewFillupForm() {
                 <span className="text-lg font-semibold text-green-700 dark:text-green-400">
                   ${totalCost} total
                 </span>
+                {defaultThousandths > 0 && pricePerGallon && (() => {
+                  const decimalPlaces = pricePerGallon.includes('.')
+                    ? pricePerGallon.split('.')[1]?.length || 0
+                    : 0
+                  if (decimalPlaces <= 2 && effectivePrice) {
+                    return (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Effective price: ${effectivePrice.toFixed(3)}/gal (includes +${defaultThousandths.toFixed(3)})
+                      </p>
+                    )
+                  }
+                  return null
+                })()}
               </div>
             )}
 

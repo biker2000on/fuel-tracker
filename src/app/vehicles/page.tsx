@@ -5,6 +5,9 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { getCachedVehicles } from '@/lib/offlineDb'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 interface Vehicle {
   id: string
@@ -24,20 +27,39 @@ interface Vehicle {
 export default function VehiclesPage() {
   const { status } = useSession()
   const router = useRouter()
+  const { isOnline } = useNetworkStatus()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isShowingCached, setIsShowingCached] = useState(false)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
+      return
+    }
+
+    if (status === 'unauthenticated' && !isOnline) {
+      getCachedVehicles().then(cached => {
+        if (cached && cached.length > 0) {
+          setVehicles(cached.map(v => ({
+            ...v,
+            createdAt: '',
+            updatedAt: '',
+          })))
+          setIsShowingCached(true)
+        }
+        setIsLoading(false)
+      }).catch(() => {
+        setIsLoading(false)
+      })
       return
     }
 
     if (status === 'authenticated') {
       fetchVehicles()
     }
-  }, [status, router])
+  }, [status, router, isOnline])
 
   async function fetchVehicles() {
     try {
@@ -62,6 +84,10 @@ export default function VehiclesPage() {
     )
   }
 
+  if (!isOnline && !isShowingCached && vehicles.length === 0) {
+    return <OfflineNotice message="Vehicles list is not available offline. Visit the dashboard while online to cache your vehicles." />
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
       <div className="mx-auto max-w-4xl">
@@ -77,6 +103,15 @@ export default function VehiclesPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
           Your Vehicles
         </h1>
+
+        {isShowingCached && (
+          <div className="mb-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Showing cached data</p>
+            <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+              You are viewing previously loaded vehicles. Some data may be out of date.
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-md text-sm">

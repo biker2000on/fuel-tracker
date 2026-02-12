@@ -189,6 +189,7 @@ export async function POST(request: Request) {
     date?: string
     gallons?: number
     pricePerGallon?: number
+    pricePerGallonRaw?: string
     odometer?: number
     isFull?: boolean
     notes?: string
@@ -243,6 +244,24 @@ export async function POST(request: Request) {
       { error: 'Price per gallon must be a positive number' },
       { status: 400 }
     )
+  }
+
+  // Validate optional pricePerGallonRaw (string version of price for decimal detection)
+  if (body.pricePerGallonRaw !== undefined && body.pricePerGallonRaw !== null) {
+    if (typeof body.pricePerGallonRaw !== 'string') {
+      return NextResponse.json(
+        { error: 'pricePerGallonRaw must be a string' },
+        { status: 400 }
+      )
+    }
+    // Verify it parses to a valid number close to pricePerGallon
+    const rawParsed = parseFloat(body.pricePerGallonRaw)
+    if (isNaN(rawParsed) || Math.abs(rawParsed - body.pricePerGallon) > 0.001) {
+      return NextResponse.json(
+        { error: 'pricePerGallonRaw must match pricePerGallon' },
+        { status: 400 }
+      )
+    }
   }
 
   if (typeof body.odometer !== 'number' || !Number.isInteger(body.odometer) || body.odometer <= 0) {
@@ -323,8 +342,30 @@ export async function POST(request: Request) {
     )
   }
 
-  // Calculate totalCost
-  const totalCost = Math.round(body.gallons * body.pricePerGallon * 100) / 100
+  // Fetch user's thousandths preference
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { defaultThousandths: true }
+  })
+
+  // Apply thousandths if user entered price with 2 or fewer decimal places
+  let effectivePrice = body.pricePerGallon
+  if (user?.defaultThousandths && user.defaultThousandths > 0) {
+    // Use the raw string for decimal place detection (preserves trailing zeros)
+    // Fall back to numeric toString() if raw string not provided (backward compat)
+    const priceStr = body.pricePerGallonRaw ?? body.pricePerGallon.toString()
+    const decimalIndex = priceStr.indexOf('.')
+    const decimalPlaces = decimalIndex === -1 ? 0 : priceStr.length - decimalIndex - 1
+
+    if (decimalPlaces <= 2) {
+      effectivePrice = body.pricePerGallon + user.defaultThousandths
+      // Round to avoid floating point errors (e.g., 2.09 + 0.009 = 2.0989999...)
+      effectivePrice = Math.round(effectivePrice * 1000) / 1000
+    }
+  }
+
+  // Calculate totalCost using effective price
+  const totalCost = Math.round(body.gallons * effectivePrice * 100) / 100
 
   // Calculate MPG if previous fillup exists and both are full tanks
   let mpg: number | null = null
@@ -354,7 +395,7 @@ export async function POST(request: Request) {
       data: {
         date: parsedDate,
         gallons: body.gallons,
-        pricePerGallon: body.pricePerGallon,
+        pricePerGallon: effectivePrice,
         totalCost,
         odometer: body.odometer,
         mpg,

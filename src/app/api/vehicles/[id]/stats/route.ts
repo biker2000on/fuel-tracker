@@ -73,9 +73,34 @@ export async function GET(request: Request, context: RouteContext) {
     )
   }
 
+  // Parse optional date range filters
+  const url = new URL(request.url)
+  const startDateParam = url.searchParams.get('startDate')
+  const endDateParam = url.searchParams.get('endDate')
+
+  // Build date filter for Prisma query
+  const dateFilter: { gte?: Date; lte?: Date } = {}
+  if (startDateParam) {
+    const startDate = new Date(startDateParam)
+    if (!isNaN(startDate.getTime())) {
+      dateFilter.gte = startDate
+    }
+  }
+  if (endDateParam) {
+    const endDate = new Date(endDateParam)
+    if (!isNaN(endDate.getTime())) {
+      // Set to end of day to include the entire end date
+      endDate.setHours(23, 59, 59, 999)
+      dateFilter.lte = endDate
+    }
+  }
+
   // Fetch all fillups for this vehicle, ordered by date
   const fillups = await prisma.fillup.findMany({
-    where: { vehicleId: id },
+    where: {
+      vehicleId: id,
+      ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {})
+    },
     orderBy: { date: 'asc' }
   })
 

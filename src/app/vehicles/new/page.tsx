@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 interface Group {
   id: string
@@ -23,6 +25,7 @@ const FUEL_TYPES = [
 export default function NewVehiclePage() {
   const { status } = useSession()
   const router = useRouter()
+  const { isOnline } = useNetworkStatus()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [groups, setGroups] = useState<Group[]>([])
@@ -42,7 +45,7 @@ export default function NewVehiclePage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }
@@ -50,7 +53,7 @@ export default function NewVehiclePage() {
     if (status === 'authenticated') {
       fetchGroups()
     }
-  }, [status, router])
+  }, [status, router, isOnline])
 
   async function fetchGroups() {
     try {
@@ -182,6 +185,10 @@ export default function NewVehiclePage() {
         <div className="text-gray-500">Loading...</div>
       </div>
     )
+  }
+
+  if (!isOnline) {
+    return <OfflineNotice message="Creating a vehicle requires an internet connection." />
   }
 
   if (groups.length === 0) {

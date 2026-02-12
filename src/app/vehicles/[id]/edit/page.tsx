@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 interface Vehicle {
   id: string
@@ -30,6 +32,7 @@ export default function EditVehiclePage({ params }: { params: Promise<{ id: stri
   const { id } = use(params)
   const { status } = useSession()
   const router = useRouter()
+  const { isOnline } = useNetworkStatus()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
@@ -49,7 +52,7 @@ export default function EditVehiclePage({ params }: { params: Promise<{ id: stri
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }
@@ -57,7 +60,7 @@ export default function EditVehiclePage({ params }: { params: Promise<{ id: stri
     if (status === 'authenticated') {
       fetchVehicle()
     }
-  }, [status, router, id])
+  }, [status, router, id, isOnline])
 
   async function fetchVehicle() {
     try {
@@ -219,6 +222,10 @@ export default function EditVehiclePage({ params }: { params: Promise<{ id: stri
         <div className="text-gray-500">Loading...</div>
       </div>
     )
+  }
+
+  if (!isOnline) {
+    return <OfflineNotice message="Editing a vehicle requires an internet connection." />
   }
 
   if (error && !vehicle) {

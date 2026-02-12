@@ -4,17 +4,23 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 export default function JoinGroupPage() {
   const { status } = useSession()
   const router = useRouter()
+  const { isOnline } = useNetworkStatus()
   const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  if (status === 'unauthenticated') {
+  if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
     router.push('/login')
     return null
+  }
+  if (!isOnline) {
+    return <OfflineNotice message="Joining a group requires an internet connection." />
   }
 
   function handleInviteCodeChange(e: React.ChangeEvent<HTMLInputElement>) {

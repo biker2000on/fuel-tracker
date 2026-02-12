@@ -63,6 +63,16 @@ const runtimeCaching = [
       networkTimeoutSeconds: 3,
     }),
   },
+  // API GET - Analytics (NetworkFirst, acceptable to show slightly stale data)
+  {
+    matcher: ({ request, url }: { request: Request; url: URL }) => {
+      return request.method === "GET" && url.pathname === "/api/analytics";
+    },
+    handler: new NetworkFirst({
+      cacheName: "api-analytics",
+      networkTimeoutSeconds: 5,
+    }),
+  },
   // API POST/PUT/DELETE - NetworkOnly (handled by offline queue in app)
   {
     matcher: ({ request }: { request: Request }) => {

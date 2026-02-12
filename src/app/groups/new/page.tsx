@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 interface CreatedGroup {
   id: string
@@ -15,15 +17,19 @@ interface CreatedGroup {
 export default function NewGroupPage() {
   const { status } = useSession()
   const router = useRouter()
+  const { isOnline } = useNetworkStatus()
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [createdGroup, setCreatedGroup] = useState<CreatedGroup | null>(null)
   const [copied, setCopied] = useState(false)
 
-  if (status === 'unauthenticated') {
+  if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
     router.push('/login')
     return null
+  }
+  if (!isOnline) {
+    return <OfflineNotice message="Creating a group requires an internet connection." />
   }
 
   async function handleSubmit(e: React.FormEvent) {

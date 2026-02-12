@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { InstallButton } from '@/components/InstallButton'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useOffline } from '@/contexts/OfflineContext'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 export default function ProfilePage() {
   const { data: session, status, update: updateSession } = useSession()
@@ -21,6 +22,12 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
+
+  // Thousandths pricing state
+  const [defaultThousandths, setDefaultThousandths] = useState<number>(0)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [thousandthsSaveSuccess, setThousandthsSaveSuccess] = useState(false)
+  const [adjustedFillupsCount, setAdjustedFillupsCount] = useState<number | null>(null)
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('')
@@ -37,11 +44,26 @@ export default function ProfilePage() {
     }
   }, [session?.user?.name])
 
+  // Load profile settings (thousandths preference)
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'authenticated') {
+      fetch('/api/user/profile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.defaultThousandths !== undefined) {
+            setDefaultThousandths(data.defaultThousandths)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsLoadingProfile(false))
+    }
+  }, [status])
+
+  useEffect(() => {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
     }
-  }, [status, router])
+  }, [status, router, isOnline])
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -76,6 +98,29 @@ export default function ProfilePage() {
     setName(session?.user?.name || '')
     setIsEditing(false)
     setSaveError(null)
+  }
+
+  const handleThousandthsSave = async (value: number) => {
+    try {
+      setAdjustedFillupsCount(null)
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultThousandths: value })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDefaultThousandths(value)
+        setThousandthsSaveSuccess(true)
+        if (data.adjustedFillups > 0) {
+          setAdjustedFillupsCount(data.adjustedFillups)
+        }
+        setTimeout(() => {
+          setThousandthsSaveSuccess(false)
+          setAdjustedFillupsCount(null)
+        }, 5000)
+      }
+    } catch {}
   }
 
   // Password validation
@@ -130,8 +175,11 @@ export default function ProfilePage() {
     )
   }
 
-  if (status === 'unauthenticated') {
+  if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
     return null
+  }
+  if (status === 'unauthenticated' && !isOnline) {
+    return <OfflineNotice message="Profile settings are not available while offline." />
   }
 
   return (
@@ -321,6 +369,47 @@ export default function ProfilePage() {
               >
                 System
               </button>
+            </div>
+          </div>
+
+          {/* Fuel Pricing */}
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-gray-900 dark:text-white">Fuel Price Adjustment</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              US gas prices include 9/10 of a cent (e.g., $2.09 is actually $2.099). Enable this to automatically add the fractional cent when you enter a price with 2 or fewer decimal places. Enabling this will also retroactively adjust all your existing fillup prices that don&apos;t already have thousandths applied.
+            </p>
+            {thousandthsSaveSuccess && (
+              <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
+                <p className="text-xs text-green-700 dark:text-green-300">
+                  Setting saved.
+                  {adjustedFillupsCount !== null && adjustedFillupsCount > 0 && (
+                    <span> {adjustedFillupsCount} historical fillup{adjustedFillupsCount !== 1 ? 's' : ''} adjusted.</span>
+                  )}
+                  {adjustedFillupsCount === 0 && defaultThousandths > 0 && (
+                    <span> No historical fillups needed adjustment.</span>
+                  )}
+                </p>
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600 dark:text-gray-300">+$</span>
+              <select
+                value={defaultThousandths}
+                onChange={(e) => handleThousandthsSave(parseFloat(e.target.value))}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                <option value={0}>0.000 (disabled)</option>
+                <option value={0.001}>0.001</option>
+                <option value={0.002}>0.002</option>
+                <option value={0.003}>0.003</option>
+                <option value={0.004}>0.004</option>
+                <option value={0.005}>0.005</option>
+                <option value={0.006}>0.006</option>
+                <option value={0.007}>0.007</option>
+                <option value={0.008}>0.008</option>
+                <option value={0.009}>0.009 (US standard)</option>
+              </select>
+              <span className="text-sm text-gray-500 dark:text-gray-400">per gallon</span>
             </div>
           </div>
         </div>

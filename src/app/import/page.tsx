@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { parseCSV } from '@/lib/csvParser'
 import { CsvPreview } from '@/components/CsvPreview'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 interface Vehicle {
   id: string
@@ -31,6 +33,7 @@ function ImportForm() {
   const { status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { isOnline } = useNetworkStatus()
   const preselectedVehicleId = searchParams.get('vehicleId')
 
   // Vehicles state
@@ -52,7 +55,7 @@ function ImportForm() {
 
   // Fetch vehicles on mount
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }
@@ -60,7 +63,7 @@ function ImportForm() {
     if (status === 'authenticated') {
       fetchVehicles()
     }
-  }, [status, router])
+  }, [status, router, isOnline])
 
   // Handle preselected vehicle
   useEffect(() => {
@@ -203,6 +206,10 @@ function ImportForm() {
         <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     )
+  }
+
+  if (!isOnline) {
+    return <OfflineNotice message="Import requires an internet connection." />
   }
 
   if (vehicles.length === 0) {

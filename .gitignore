@@ -15,6 +15,7 @@
 
 # Claude
 tmpclaude*
+.prompts/
 
 # next.js
 /.next/

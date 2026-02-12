@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { reverseGeocode, formatLocation, GeocodedLocation } from '@/lib/geocoding'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 interface Fillup {
   id: string
@@ -30,6 +32,7 @@ function EditFillupForm() {
   const router = useRouter()
   const params = useParams()
   const fillupId = params.id as string
+  const { isOnline } = useNetworkStatus()
 
   // Fillup state
   const [fillup, setFillup] = useState<Fillup | null>(null)
@@ -65,7 +68,7 @@ function EditFillupForm() {
 
   // Fetch fillup on mount
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }
@@ -73,7 +76,7 @@ function EditFillupForm() {
     if (status === 'authenticated' && fillupId) {
       fetchFillup()
     }
-  }, [status, router, fillupId])
+  }, [status, router, fillupId, isOnline])
 
   async function fetchFillup() {
     try {
@@ -211,6 +214,10 @@ function EditFillupForm() {
         <div className="text-gray-500">Loading...</div>
       </div>
     )
+  }
+
+  if (!isOnline) {
+    return <OfflineNotice message="Editing a fillup requires an internet connection." />
   }
 
   if (loadError) {

@@ -227,7 +227,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   }, [id, isOnline])
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }

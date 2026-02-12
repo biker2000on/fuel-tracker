@@ -114,8 +114,12 @@ export default function DashboardPage() {
   }, [isOnline, loadCachedData])
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
+      return
+    }
+    if (status === 'unauthenticated' && !isOnline) {
+      loadCachedData()
       return
     }
 

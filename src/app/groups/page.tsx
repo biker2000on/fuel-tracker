@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useNetworkStatus } from '@/hooks/useNetworkStatus'
+import { OfflineNotice } from '@/components/OfflineNotice'
 
 interface Group {
   id: string
@@ -17,13 +19,14 @@ interface Group {
 export default function GroupsPage() {
   const { status } = useSession()
   const router = useRouter()
+  const { isOnline } = useNetworkStatus()
   const [groups, setGroups] = useState<Group[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }
@@ -31,7 +34,7 @@ export default function GroupsPage() {
     if (status === 'authenticated') {
       fetchGroups()
     }
-  }, [status, router])
+  }, [status, router, isOnline])
 
   async function fetchGroups() {
     try {
@@ -64,6 +67,10 @@ export default function GroupsPage() {
       setCopiedCode(code)
       setTimeout(() => setCopiedCode(null), 2000)
     }
+  }
+
+  if (!isOnline) {
+    return <OfflineNotice message="Groups list requires an internet connection." />
   }
 
   if (status === 'loading' || isLoading) {

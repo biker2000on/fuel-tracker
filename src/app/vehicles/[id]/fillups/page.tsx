@@ -30,6 +30,32 @@ interface Vehicle {
   model: string
 }
 
+interface VehicleStats {
+  overview: {
+    totalFillups: number
+    totalGallons: number
+    totalCost: number
+    totalMiles: number
+    firstFillup: string | null
+    lastFillup: string | null
+  }
+  mpg: {
+    average: number | null
+    best: number | null
+    worst: number | null
+    recent: number | null
+  }
+  costs: {
+    averagePricePerGallon: number | null
+    averageCostPerFillup: number | null
+    costPerMile: number | null
+  }
+  frequency: {
+    averageDaysBetweenFillups: number | null
+    averageMilesBetweenFillups: number | null
+  }
+}
+
 // Unified type for display - includes both synced and pending fillups
 interface DisplayFillup {
   id: string
@@ -73,6 +99,8 @@ function VehicleFillupsContent() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [isSyncingNow, setIsSyncingNow] = useState(false)
   const [recalculatingId, setRecalculatingId] = useState<string | null>(null)
+  const [vehicleStats, setVehicleStats] = useState<VehicleStats | null>(null)
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   // Fetch pending fillups from IndexedDB
@@ -88,7 +116,7 @@ function VehicleFillupsContent() {
   }, [vehicleId])
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
       router.push('/login')
       return
     }
@@ -97,6 +125,7 @@ function VehicleFillupsContent() {
       fetchVehicle()
       fetchFillups()
       fetchPendingFillups()
+      fetchStats()
     }
   }, [status, router, vehicleId, fetchPendingFillups])
 
@@ -147,6 +176,30 @@ function VehicleFillupsContent() {
     }
   }
 
+  async function fetchStats(filterStartDate?: string, filterEndDate?: string) {
+    try {
+      setIsLoadingStats(true)
+      const statsParams = new URLSearchParams()
+      if (filterStartDate) {
+        statsParams.append('startDate', filterStartDate)
+      }
+      if (filterEndDate) {
+        statsParams.append('endDate', filterEndDate)
+      }
+      const queryString = statsParams.toString()
+      const statsUrl = `/api/vehicles/${vehicleId}/stats${queryString ? `?${queryString}` : ''}`
+      const response = await fetch(statsUrl)
+      if (response.ok) {
+        const data = await response.json()
+        setVehicleStats(data)
+      }
+    } catch {
+      console.error('Failed to load vehicle stats')
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }
+
   async function fetchFillups(cursor?: string, filterStartDate?: string, filterEndDate?: string) {
     try {
       const apiParams = new URLSearchParams({ vehicleId, pageSize: '20' })
@@ -194,6 +247,7 @@ function VehicleFillupsContent() {
     setNextCursor(null)
     setIsLoading(true)
     fetchFillups(undefined, start, end)
+    fetchStats(start, end)
     // Scroll to top when filter applied
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -394,14 +448,6 @@ function VehicleFillupsContent() {
   const displayFillups = getDisplayFillups()
   const hasPendingFillups = pendingFillups.length > 0
 
-  // Calculate stats (only from synced fillups for accuracy)
-  const totalFillups = fillups.length
-  const totalGallons = fillups.reduce((sum, f) => sum + f.gallons, 0)
-  const fillupsWithMpg = fillups.filter(f => f.mpg !== null)
-  const averageMpg = fillupsWithMpg.length > 0
-    ? fillupsWithMpg.reduce((sum, f) => sum + (f.mpg || 0), 0) / fillupsWithMpg.length
-    : null
-
   if (status === 'loading' || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -592,32 +638,75 @@ function VehicleFillupsContent() {
         </div>
 
         {/* Stats Summary */}
-        {fillups.length > 0 && (
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {totalFillups}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Fillups
-              </p>
+        {vehicleStats && vehicleStats.overview.totalFillups > 0 && (
+          <div className="mb-6">
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {vehicleStats.overview.totalFillups}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Fillups
+                </p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {vehicleStats.overview.totalGallons.toFixed(1)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Total Gal
+                </p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {vehicleStats.mpg.average ? vehicleStats.mpg.average.toFixed(1) : '--'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Avg MPG
+                </p>
+              </div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {totalGallons.toFixed(1)}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Total Gal
-              </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  ${vehicleStats.overview.totalCost.toFixed(0)}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Total Cost
+                </p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {vehicleStats.costs.costPerMile ? `$${vehicleStats.costs.costPerMile.toFixed(2)}` : '--'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Cost/Mile
+                </p>
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-center">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {vehicleStats.costs.averagePricePerGallon ? `$${vehicleStats.costs.averagePricePerGallon.toFixed(3)}` : '--'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Avg $/Gal
+                </p>
+              </div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {averageMpg ? averageMpg.toFixed(1) : '--'}
+            {activeFilter && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
+                Stats for: {activeFilter}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Avg MPG
-              </p>
-            </div>
+            )}
+          </div>
+        )}
+        {isLoadingStats && !vehicleStats && (
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-center animate-pulse">
+                <div className="h-8 w-12 bg-gray-200 dark:bg-gray-700 rounded mx-auto mb-1" />
+                <div className="h-3 w-16 bg-gray-200 dark:bg-gray-700 rounded mx-auto" />
+              </div>
+            ))}
           </div>
         )}
 
