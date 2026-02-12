@@ -137,11 +137,55 @@ function pivotByVehicle<T extends { date: string; vehicleName: string }>(
     } else {
       dateMap.set(point.date, {
         date: point.date,
+        _ts: new Date(point.date + 'T00:00:00').getTime(),
         [point.vehicleName]: point[valueKey],
       })
     }
   }
   return Array.from(dateMap.values())
+}
+
+// Fill missing months between first and last data point with zero values
+function fillMissingMonths<T extends { month: string }>(
+  data: T[],
+  defaults: Omit<T, 'month'>
+): T[] {
+  if (data.length < 2) return data
+  const filled: T[] = []
+  const first = data[0].month
+  const last = data[data.length - 1].month
+  const [fy, fm] = first.split('-').map(Number)
+  const [ly, lm] = last.split('-').map(Number)
+  const iter = new Date(fy, fm - 1, 1)
+  const end = new Date(ly, lm - 1, 1)
+  const dataMap = new Map(data.map(d => [d.month, d]))
+  while (iter <= end) {
+    const key = `${iter.getFullYear()}-${String(iter.getMonth() + 1).padStart(2, '0')}`
+    filled.push(dataMap.get(key) || { month: key, ...defaults } as T)
+    iter.setMonth(iter.getMonth() + 1)
+  }
+  return filled
+}
+
+// Fill missing months in pivoted data (where date field represents months)
+function fillMissingMonthsPivoted(
+  data: Array<Record<string, unknown>>
+): Array<Record<string, unknown>> {
+  if (data.length < 2) return data
+  const first = data[0].date as string
+  const last = data[data.length - 1].date as string
+  const [fy, fm] = first.split('-').map(Number)
+  const [ly, lm] = last.split('-').map(Number)
+  const iter = new Date(fy, fm - 1, 1)
+  const end = new Date(ly, lm - 1, 1)
+  const dataMap = new Map(data.map(d => [d.date as string, d]))
+  const filled: Array<Record<string, unknown>> = []
+  while (iter <= end) {
+    const key = `${iter.getFullYear()}-${String(iter.getMonth() + 1).padStart(2, '0')}`
+    filled.push(dataMap.get(key) || { date: key })
+    iter.setMonth(iter.getMonth() + 1)
+  }
+  return filled
 }
 
 export default function AnalyticsPage() {
@@ -249,10 +293,15 @@ export default function AnalyticsPage() {
   const mpgChartData = data ? pivotByVehicle(data.mpgHistory, 'mpg') : []
   const costPerMileChartData = data ? pivotByVehicle(data.costPerMile, 'costPerMile') : []
   const monthlyMilesChartData = data
-    ? pivotByVehicle(
-        data.monthlyMiles.map(p => ({ ...p, date: p.month })),
-        'miles'
+    ? fillMissingMonthsPivoted(
+        pivotByVehicle(
+          data.monthlyMiles.map(p => ({ ...p, date: p.month })),
+          'miles'
+        )
       )
+    : []
+  const spendingChartData = data
+    ? fillMissingMonths(data.monthlySpending, { totalCost: 0, gallons: 0, fillupCount: 0 })
     : []
 
   const vehicleColorMap = new Map<string, string>()
@@ -334,8 +383,11 @@ export default function AnalyticsPage() {
       <LineChart data={priceChartData}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis
-          dataKey="date"
-          tickFormatter={formatDateLabel}
+          dataKey="_ts"
+          type="number"
+          scale="time"
+          domain={['dataMin', 'dataMax']}
+          tickFormatter={(ts: number) => formatDateLabel(new Date(ts).toISOString().split('T')[0])}
           stroke={axisColor}
           fontSize={12}
         />
@@ -390,8 +442,11 @@ export default function AnalyticsPage() {
       <LineChart data={mpgChartData}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis
-          dataKey="date"
-          tickFormatter={formatDateLabel}
+          dataKey="_ts"
+          type="number"
+          scale="time"
+          domain={['dataMin', 'dataMax']}
+          tickFormatter={(ts: number) => formatDateLabel(new Date(ts).toISOString().split('T')[0])}
           stroke={axisColor}
           fontSize={12}
         />
@@ -443,7 +498,7 @@ export default function AnalyticsPage() {
 
   const renderSpendingChart = (height: number) => (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data!.monthlySpending}>
+      <BarChart data={spendingChartData}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis
           dataKey="month"
@@ -496,8 +551,11 @@ export default function AnalyticsPage() {
       <LineChart data={costPerMileChartData}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis
-          dataKey="date"
-          tickFormatter={formatDateLabel}
+          dataKey="_ts"
+          type="number"
+          scale="time"
+          domain={['dataMin', 'dataMax']}
+          tickFormatter={(ts: number) => formatDateLabel(new Date(ts).toISOString().split('T')[0])}
           stroke={axisColor}
           fontSize={12}
         />
