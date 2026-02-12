@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import { OfflineNotice } from '@/components/OfflineNotice'
 import { useTheme } from '@/contexts/ThemeContext'
+import ChartModal from '@/components/ChartModal'
 import {
   LineChart,
   BarChart,
@@ -116,6 +117,9 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<string>('')
   const [period, setPeriod] = useState<Period>('12m')
+  const [showDots, setShowDots] = useState(true)
+  const [expandedChart, setExpandedChart] = useState<string | null>(null)
+  const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set())
 
   const isDark = resolvedTheme === 'dark'
   const axisColor = isDark ? '#9ca3af' : '#6b7280'
@@ -229,6 +233,179 @@ export default function AnalyticsPage() {
     color: isDark ? '#f3f4f6' : '#111827',
   }
 
+  const handleLegendClick = (dataKey: string) => {
+    setHiddenBars(prev => {
+      const next = new Set(prev)
+      if (next.has(dataKey)) {
+        next.delete(dataKey)
+      } else {
+        next.add(dataKey)
+      }
+      return next
+    })
+  }
+
+  const expandButton = (chartKey: string, chartTitle: string) => (
+    <button
+      onClick={() => setExpandedChart(chartKey)}
+      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      aria-label={`Expand ${chartTitle} chart`}
+    >
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+      </svg>
+    </button>
+  )
+
+  const renderPriceChart = (height: number) => (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={priceChartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={formatDateLabel}
+          stroke={axisColor}
+          fontSize={12}
+        />
+        <YAxis
+          stroke={axisColor}
+          fontSize={12}
+          tickFormatter={(v: number) => `$${v.toFixed(2)}`}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          labelFormatter={(label) => String(label)}
+          formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
+        />
+        <Legend />
+        {vehicleNames.map((name, i) => (
+          <Line
+            key={name}
+            type="monotone"
+            dataKey={name}
+            stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
+            strokeWidth={2}
+            dot={showDots ? { r: 3 } : false}
+            connectNulls
+            animationDuration={250}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  )
+
+  const renderMpgChart = (height: number) => (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={mpgChartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={formatDateLabel}
+          stroke={axisColor}
+          fontSize={12}
+        />
+        <YAxis
+          stroke={axisColor}
+          fontSize={12}
+          tickFormatter={(v: number) => v.toFixed(1)}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          labelFormatter={(label) => String(label)}
+          formatter={(value) => [Number(value).toFixed(2), '']}
+        />
+        <Legend />
+        {vehicleNames.map((name, i) => (
+          <Line
+            key={name}
+            type="monotone"
+            dataKey={name}
+            stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
+            strokeWidth={2}
+            dot={showDots ? { r: 3 } : false}
+            connectNulls
+            animationDuration={250}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  )
+
+  const renderSpendingChart = (height: number) => (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data!.monthlySpending}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis
+          dataKey="month"
+          tickFormatter={formatMonthLabel}
+          stroke={axisColor}
+          fontSize={12}
+        />
+        <YAxis
+          stroke={axisColor}
+          fontSize={12}
+          tickFormatter={(v: number) => `$${v}`}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          labelFormatter={(label) => formatMonthLabel(String(label))}
+          formatter={(value, name) => {
+            if (name === 'totalCost') return [`$${Number(value).toFixed(2)}`, 'Total Cost']
+            if (name === 'gallons') return [`${Number(value).toFixed(1)} gal`, 'Gallons']
+            return [value, String(name)]
+          }}
+        />
+        <Legend
+          onClick={(data) => handleLegendClick(data.dataKey as string)}
+          wrapperStyle={{ cursor: 'pointer' }}
+          formatter={(value) => {
+            const label = value === 'totalCost' ? 'Total Cost' : value === 'gallons' ? 'Gallons' : value
+            return <span style={{ color: hiddenBars.has(String(value)) ? '#9ca3af' : undefined, textDecoration: hiddenBars.has(String(value)) ? 'line-through' : undefined }}>{label}</span>
+          }}
+        />
+        <Bar dataKey="totalCost" fill="#3b82f6" radius={[4, 4, 0, 0]} animationDuration={250} hide={hiddenBars.has('totalCost')} />
+        <Bar dataKey="gallons" fill="#10b981" radius={[4, 4, 0, 0]} animationDuration={250} hide={hiddenBars.has('gallons')} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+
+  const renderCostPerMileChart = (height: number) => (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={costPerMileChartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={formatDateLabel}
+          stroke={axisColor}
+          fontSize={12}
+        />
+        <YAxis
+          stroke={axisColor}
+          fontSize={12}
+          tickFormatter={(v: number) => `$${v.toFixed(2)}`}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          labelFormatter={(label) => String(label)}
+          formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
+        />
+        <Legend />
+        {vehicleNames.map((name, i) => (
+          <Line
+            key={name}
+            type="monotone"
+            dataKey={name}
+            stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
+            strokeWidth={2}
+            dot={showDots ? { r: 3 } : false}
+            connectNulls
+            animationDuration={250}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 pb-24">
       <div className="mx-auto max-w-2xl">
@@ -281,166 +458,77 @@ export default function AnalyticsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Price per Gallon Chart */}
-            {data!.priceHistory.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Price per Gallon</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={priceChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatDateLabel}
-                      stroke={axisColor}
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke={axisColor}
-                      fontSize={12}
-                      tickFormatter={(v: number) => `$${v.toFixed(2)}`}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(label) => String(label)}
-                      formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
-                    />
-                    <Legend />
-                    {vehicleNames.map((name, i) => (
-                      <Line
-                        key={name}
-                        type="monotone"
-                        dataKey={name}
-                        stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
-                        strokeWidth={2}
-                        dot={{ r: 3 }}
-                        connectNulls
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+          <>
+            {/* Data Points Toggle */}
+            <div className="flex items-center justify-end mb-4">
+              <button
+                onClick={() => setShowDots(prev => !prev)}
+                className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                {showDots ? 'Hide' : 'Show'} Data Points
+              </button>
+            </div>
 
-            {/* MPG Over Time Chart */}
-            {data!.mpgHistory.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">MPG Over Time</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={mpgChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatDateLabel}
-                      stroke={axisColor}
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke={axisColor}
-                      fontSize={12}
-                      tickFormatter={(v: number) => v.toFixed(1)}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(label) => String(label)}
-                      formatter={(value) => [Number(value).toFixed(2), '']}
-                    />
-                    <Legend />
-                    {vehicleNames.map((name, i) => (
-                      <Line
-                        key={name}
-                        type="monotone"
-                        dataKey={name}
-                        stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
-                        strokeWidth={2}
-                        dot={{ r: 3 }}
-                        connectNulls
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <div className="space-y-6">
+              {/* Price per Gallon Chart */}
+              {data!.priceHistory.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Price per Gallon</h2>
+                    {expandButton('price', 'Price per Gallon')}
+                  </div>
+                  {renderPriceChart(250)}
+                </div>
+              )}
 
-            {/* Monthly Spending Chart */}
-            {data!.monthlySpending.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Monthly Spending</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={data!.monthlySpending}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis
-                      dataKey="month"
-                      tickFormatter={formatMonthLabel}
-                      stroke={axisColor}
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke={axisColor}
-                      fontSize={12}
-                      tickFormatter={(v: number) => `$${v}`}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(label) => formatMonthLabel(String(label))}
-                      formatter={(value, name) => {
-                        if (name === 'totalCost') return [`$${Number(value).toFixed(2)}`, 'Total Cost']
-                        if (name === 'gallons') return [`${Number(value).toFixed(1)} gal`, 'Gallons']
-                        return [value, String(name)]
-                      }}
-                    />
-                    <Legend formatter={(value) => {
-                      if (value === 'totalCost') return 'Total Cost'
-                      if (value === 'gallons') return 'Gallons'
-                      return value
-                    }} />
-                    <Bar dataKey="totalCost" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="gallons" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+              {/* MPG Over Time Chart */}
+              {data!.mpgHistory.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">MPG Over Time</h2>
+                    {expandButton('mpg', 'MPG Over Time')}
+                  </div>
+                  {renderMpgChart(250)}
+                </div>
+              )}
 
-            {/* Cost per Mile Chart */}
-            {data!.costPerMile.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Cost per Mile</h2>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={costPerMileChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                    <XAxis
-                      dataKey="date"
-                      tickFormatter={formatDateLabel}
-                      stroke={axisColor}
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke={axisColor}
-                      fontSize={12}
-                      tickFormatter={(v: number) => `$${v.toFixed(2)}`}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(label) => String(label)}
-                      formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
-                    />
-                    <Legend />
-                    {vehicleNames.map((name, i) => (
-                      <Line
-                        key={name}
-                        type="monotone"
-                        dataKey={name}
-                        stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
-                        strokeWidth={2}
-                        dot={{ r: 3 }}
-                        connectNulls
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+              {/* Monthly Spending Chart */}
+              {data!.monthlySpending.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Monthly Spending</h2>
+                    {expandButton('spending', 'Monthly Spending')}
+                  </div>
+                  {renderSpendingChart(250)}
+                </div>
+              )}
+
+              {/* Cost per Mile Chart */}
+              {data!.costPerMile.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Cost per Mile</h2>
+                    {expandButton('costPerMile', 'Cost per Mile')}
+                  </div>
+                  {renderCostPerMileChart(250)}
+                </div>
+              )}
+            </div>
+
+            {/* Fullscreen Chart Modals */}
+            <ChartModal isOpen={expandedChart === 'price'} onClose={() => setExpandedChart(null)} title="Price per Gallon">
+              {renderPriceChart(500)}
+            </ChartModal>
+            <ChartModal isOpen={expandedChart === 'mpg'} onClose={() => setExpandedChart(null)} title="MPG Over Time">
+              {renderMpgChart(500)}
+            </ChartModal>
+            <ChartModal isOpen={expandedChart === 'spending'} onClose={() => setExpandedChart(null)} title="Monthly Spending">
+              {renderSpendingChart(500)}
+            </ChartModal>
+            <ChartModal isOpen={expandedChart === 'costPerMile'} onClose={() => setExpandedChart(null)} title="Cost per Mile">
+              {renderCostPerMileChart(500)}
+            </ChartModal>
+          </>
         )}
       </div>
     </div>
