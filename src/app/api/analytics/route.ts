@@ -56,6 +56,13 @@ export async function GET(request: Request) {
       monthlySpending: [],
       costPerMile: [],
       vehicles: [],
+      kpiStats: {
+        overview: { totalFillups: 0, totalGallons: 0, totalCost: 0, totalMiles: 0 },
+        mpg: { average: null, best: null, worst: null, recent: null },
+        costs: { averagePricePerGallon: null, averageCostPerFillup: null, costPerMile: null },
+        frequency: { averageDaysBetweenFillups: null, averageMilesBetweenFillups: null },
+      },
+      monthlyMiles: [],
     })
   }
 
@@ -74,6 +81,13 @@ export async function GET(request: Request) {
       monthlySpending: [],
       costPerMile: [],
       vehicles: [],
+      kpiStats: {
+        overview: { totalFillups: 0, totalGallons: 0, totalCost: 0, totalMiles: 0 },
+        mpg: { average: null, best: null, worst: null, recent: null },
+        costs: { averagePricePerGallon: null, averageCostPerFillup: null, costPerMile: null },
+        frequency: { averageDaysBetweenFillups: null, averageMilesBetweenFillups: null },
+      },
+      monthlyMiles: [],
     })
   }
 
@@ -111,6 +125,7 @@ export async function GET(request: Request) {
       totalCost: true,
       odometer: true,
       mpg: true,
+      isFull: true,
       vehicleId: true,
     },
   })
@@ -197,14 +212,140 @@ export async function GET(request: Request) {
   // Sort costPerMile by date
   costPerMile.sort((a, b) => a.date.localeCompare(b.date))
 
-  // Assign colors to vehicles
-  const vehiclesWithColors = vehicles
-    .filter((v) => filteredVehicleIds.includes(v.id))
-    .map((v, i) => ({
-      id: v.id,
-      name: v.name,
-      color: VEHICLE_COLORS[i % VEHICLE_COLORS.length],
-    }))
+  // Build kpiStats from fillups (same logic as vehicle stats route)
+  const kpiStats = {
+    overview: {
+      totalFillups: 0,
+      totalGallons: 0,
+      totalCost: 0,
+      totalMiles: 0,
+    },
+    mpg: {
+      average: null as number | null,
+      best: null as number | null,
+      worst: null as number | null,
+      recent: null as number | null,
+    },
+    costs: {
+      averagePricePerGallon: null as number | null,
+      averageCostPerFillup: null as number | null,
+      costPerMile: null as number | null,
+    },
+    frequency: {
+      averageDaysBetweenFillups: null as number | null,
+      averageMilesBetweenFillups: null as number | null,
+    },
+  }
+
+  if (fillups.length > 0) {
+    kpiStats.overview.totalFillups = fillups.length
+    kpiStats.overview.totalGallons = Math.round(fillups.reduce((s, f) => s + f.gallons, 0) * 100) / 100
+    kpiStats.overview.totalCost = Math.round(fillups.reduce((s, f) => s + f.totalCost, 0) * 100) / 100
+
+    // Total miles: sum of (last - first odometer) per vehicle
+    for (const [, vFillups] of fillupsByVehicle) {
+      if (vFillups.length >= 2) {
+        kpiStats.overview.totalMiles += vFillups[vFillups.length - 1].odometer - vFillups[0].odometer
+      }
+    }
+
+    // MPG stats from full fillups with mpg (must match vehicle stats route: isFull && mpg > 0)
+    const fillupsWithMpg = fillups.filter(f => f.isFull && f.mpg !== null && f.mpg > 0)
+    if (fillupsWithMpg.length > 0) {
+      const mpgValues = fillupsWithMpg.map(f => f.mpg as number)
+      kpiStats.mpg.average = Math.round((mpgValues.reduce((s, v) => s + v, 0) / mpgValues.length) * 10) / 10
+      kpiStats.mpg.best = Math.round(Math.max(...mpgValues) * 10) / 10
+      kpiStats.mpg.worst = Math.round(Math.min(...mpgValues) * 10) / 10
+      const recentMpg = fillupsWithMpg.slice(-5).map(f => f.mpg as number)
+      kpiStats.mpg.recent = Math.round((recentMpg.reduce((s, v) => s + v, 0) / recentMpg.length) * 10) / 10
+    }
+
+    // Cost stats
+    kpiStats.costs.averagePricePerGallon = Math.round((fillups.reduce((s, f) => s + f.pricePerGallon, 0) / fillups.length) * 1000) / 1000
+    kpiStats.costs.averageCostPerFillup = Math.round((kpiStats.overview.totalCost / fillups.length) * 100) / 100
+    if (kpiStats.overview.totalMiles > 0) {
+      kpiStats.costs.costPerMile = Math.round((kpiStats.overview.totalCost / kpiStats.overview.totalMiles) * 100) / 100
+    }
+
+    // Frequency stats (need at least 2 fillups)
+    if (fillups.length >= 2) {
+      const firstDate = fillups[0].date.getTime()
+      const lastDate = fillups[fillups.length - 1].date.getTime()
+      const daysBetween = (lastDate - firstDate) / (1000 * 60 * 60 * 24)
+      kpiStats.frequency.averageDaysBetweenFillups = Math.round((daysBetween / (fillups.length - 1)) * 10) / 10
+      kpiStats.frequency.averageMilesBetweenFillups = Math.round(kpiStats.overview.totalMiles / (fillups.length - 1))
+    }
+  }
+
+  // Build monthlyMiles: for each vehicle, compute miles per month
+  interface MonthlyMilesPoint {
+    month: string
+    vehicleId: string
+    vehicleName: string
+    miles: number
+  }
+
+  const monthlyMilesRaw: MonthlyMilesPoint[] = []
+
+  for (const [vId, vFillups] of fillupsByVehicle) {
+    if (vFillups.length < 2) continue
+    const vName = vehicleNameMap.get(vId) || ''
+
+    for (let i = 1; i < vFillups.length; i++) {
+      const prev = vFillups[i - 1]
+      const curr = vFillups[i]
+      const milesDriven = curr.odometer - prev.odometer
+      if (milesDriven <= 0) continue
+
+      const prevDate = prev.date
+      const currDate = curr.date
+
+      // Get all months in the range [prevDate, currDate]
+      const startMonth = new Date(prevDate.getFullYear(), prevDate.getMonth(), 1)
+      const endMonth = new Date(currDate.getFullYear(), currDate.getMonth(), 1)
+
+      // Count months in range
+      const months: string[] = []
+      const iter = new Date(startMonth)
+      while (iter <= endMonth) {
+        months.push(`${iter.getFullYear()}-${String(iter.getMonth() + 1).padStart(2, '0')}`)
+        iter.setMonth(iter.getMonth() + 1)
+      }
+
+      // Spread miles evenly across months in the gap
+      const milesPerMonth = milesDriven / months.length
+      for (const month of months) {
+        monthlyMilesRaw.push({
+          month,
+          vehicleId: vId,
+          vehicleName: vName,
+          miles: Math.round(milesPerMonth * 10) / 10,
+        })
+      }
+    }
+  }
+
+  // Aggregate by vehicle + month (a month may have multiple fillup segments)
+  const monthlyMilesAgg = new Map<string, MonthlyMilesPoint>()
+  for (const point of monthlyMilesRaw) {
+    const key = `${point.vehicleId}-${point.month}`
+    const existing = monthlyMilesAgg.get(key)
+    if (existing) {
+      existing.miles = Math.round((existing.miles + point.miles) * 10) / 10
+    } else {
+      monthlyMilesAgg.set(key, { ...point })
+    }
+  }
+
+  const monthlyMiles = Array.from(monthlyMilesAgg.values())
+    .sort((a, b) => a.month.localeCompare(b.month))
+
+  // Assign colors to vehicles - always return ALL vehicles for the dropdown
+  const vehiclesWithColors = vehicles.map((v, i) => ({
+    id: v.id,
+    name: v.name,
+    color: VEHICLE_COLORS[i % VEHICLE_COLORS.length],
+  }))
 
   return NextResponse.json({
     priceHistory,
@@ -212,5 +353,7 @@ export async function GET(request: Request) {
     monthlySpending,
     costPerMile,
     vehicles: vehiclesWithColors,
+    kpiStats,
+    monthlyMiles,
   })
 }

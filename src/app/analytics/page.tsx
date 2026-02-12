@@ -65,12 +65,50 @@ interface CostPerMilePoint {
   vehicleName: string
 }
 
+interface MonthlyMilesPoint {
+  month: string
+  vehicleId: string
+  vehicleName: string
+  miles: number
+}
+
+interface KpiStats {
+  overview: {
+    totalFillups: number
+    totalGallons: number
+    totalCost: number
+    totalMiles: number
+  }
+  mpg: {
+    average: number | null
+    best: number | null
+    worst: number | null
+    recent: number | null
+  }
+  costs: {
+    averagePricePerGallon: number | null
+    averageCostPerFillup: number | null
+    costPerMile: number | null
+  }
+  frequency: {
+    averageDaysBetweenFillups: number | null
+    averageMilesBetweenFillups: number | null
+  }
+}
+
+interface LegendState {
+  focusedItem: string | null
+  hiddenItems: Set<string>
+}
+
 interface AnalyticsData {
   priceHistory: PricePoint[]
   mpgHistory: MpgPoint[]
   monthlySpending: MonthlySpendingPoint[]
   costPerMile: CostPerMilePoint[]
   vehicles: VehicleInfo[]
+  kpiStats: KpiStats
+  monthlyMiles: MonthlyMilesPoint[]
 }
 
 type Period = '3m' | '6m' | '12m' | 'all'
@@ -119,7 +157,8 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('12m')
   const [showDots, setShowDots] = useState(true)
   const [expandedChart, setExpandedChart] = useState<string | null>(null)
-  const [hiddenBars, setHiddenBars] = useState<Set<string>>(new Set())
+  const [kpiExpanded, setKpiExpanded] = useState(true)
+  const [legendStates, setLegendStates] = useState<Record<string, LegendState>>({})
 
   const isDark = resolvedTheme === 'dark'
   const axisColor = isDark ? '#9ca3af' : '#6b7280'
@@ -201,13 +240,20 @@ export default function AnalyticsPage() {
     data.priceHistory.length > 0 ||
     data.mpgHistory.length > 0 ||
     data.monthlySpending.length > 0 ||
-    data.costPerMile.length > 0
+    data.costPerMile.length > 0 ||
+    data.monthlyMiles.length > 0
   )
 
   // Pivot data for multi-vehicle line charts
   const priceChartData = data ? pivotByVehicle(data.priceHistory, 'pricePerGallon') : []
   const mpgChartData = data ? pivotByVehicle(data.mpgHistory, 'mpg') : []
   const costPerMileChartData = data ? pivotByVehicle(data.costPerMile, 'costPerMile') : []
+  const monthlyMilesChartData = data
+    ? pivotByVehicle(
+        data.monthlyMiles.map(p => ({ ...p, date: p.month })),
+        'miles'
+      )
+    : []
 
   const vehicleColorMap = new Map<string, string>()
   if (data) {
@@ -233,16 +279,42 @@ export default function AnalyticsPage() {
     color: isDark ? '#f3f4f6' : '#111827',
   }
 
-  const handleLegendClick = (dataKey: string) => {
-    setHiddenBars(prev => {
-      const next = new Set(prev)
-      if (next.has(dataKey)) {
-        next.delete(dataKey)
+  const getLegendState = (chartKey: string): LegendState => {
+    return legendStates[chartKey] || { focusedItem: null, hiddenItems: new Set() }
+  }
+
+  const handleLegendClick = (chartKey: string, dataKey: string, ctrlKey: boolean) => {
+    setLegendStates(prev => {
+      const current = prev[chartKey] || { focusedItem: null, hiddenItems: new Set() }
+
+      if (ctrlKey) {
+        const nextHidden = new Set(current.hiddenItems)
+        if (nextHidden.has(dataKey)) {
+          nextHidden.delete(dataKey)
+        } else {
+          nextHidden.add(dataKey)
+        }
+        return { ...prev, [chartKey]: { focusedItem: null, hiddenItems: nextHidden } }
       } else {
-        next.add(dataKey)
+        if (current.focusedItem === dataKey) {
+          return { ...prev, [chartKey]: { focusedItem: null, hiddenItems: new Set() } }
+        } else {
+          return { ...prev, [chartKey]: { focusedItem: dataKey, hiddenItems: new Set() } }
+        }
       }
-      return next
     })
+  }
+
+  const getItemOpacity = (chartKey: string, dataKey: string): number => {
+    const state = getLegendState(chartKey)
+    if (state.hiddenItems.has(dataKey)) return 0
+    if (state.focusedItem === null) return 1
+    return state.focusedItem === dataKey ? 1 : 0.15
+  }
+
+  const isItemHidden = (chartKey: string, dataKey: string): boolean => {
+    const state = getLegendState(chartKey)
+    return state.hiddenItems.has(dataKey)
   }
 
   const expandButton = (chartKey: string, chartTitle: string) => (
@@ -277,7 +349,25 @@ export default function AnalyticsPage() {
           labelFormatter={(label) => String(label)}
           formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
         />
-        <Legend />
+        <Legend
+          onClick={(data, _index, event) => {
+            const nativeEvent = event as unknown as React.MouseEvent
+            handleLegendClick('price', data.dataKey as string, nativeEvent.ctrlKey || nativeEvent.metaKey)
+          }}
+          wrapperStyle={{ cursor: 'pointer' }}
+          formatter={(value) => {
+            const opacity = getItemOpacity('price', String(value))
+            return (
+              <span style={{
+                color: opacity === 0 ? '#9ca3af' : undefined,
+                textDecoration: opacity === 0 ? 'line-through' : undefined,
+                opacity: opacity === 0 ? 0.5 : opacity < 1 ? 0.4 : 1,
+              }}>
+                {value}
+              </span>
+            )
+          }}
+        />
         {vehicleNames.map((name, i) => (
           <Line
             key={name}
@@ -285,7 +375,8 @@ export default function AnalyticsPage() {
             dataKey={name}
             stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
             strokeWidth={2}
-            dot={showDots ? { r: 3 } : false}
+            strokeOpacity={getItemOpacity('price', name)}
+            dot={showDots && getItemOpacity('price', name) > 0 ? { r: 3 } : false}
             connectNulls
             animationDuration={250}
           />
@@ -314,7 +405,25 @@ export default function AnalyticsPage() {
           labelFormatter={(label) => String(label)}
           formatter={(value) => [Number(value).toFixed(2), '']}
         />
-        <Legend />
+        <Legend
+          onClick={(data, _index, event) => {
+            const nativeEvent = event as unknown as React.MouseEvent
+            handleLegendClick('mpg', data.dataKey as string, nativeEvent.ctrlKey || nativeEvent.metaKey)
+          }}
+          wrapperStyle={{ cursor: 'pointer' }}
+          formatter={(value) => {
+            const opacity = getItemOpacity('mpg', String(value))
+            return (
+              <span style={{
+                color: opacity === 0 ? '#9ca3af' : undefined,
+                textDecoration: opacity === 0 ? 'line-through' : undefined,
+                opacity: opacity === 0 ? 0.5 : opacity < 1 ? 0.4 : 1,
+              }}>
+                {value}
+              </span>
+            )
+          }}
+        />
         {vehicleNames.map((name, i) => (
           <Line
             key={name}
@@ -322,7 +431,8 @@ export default function AnalyticsPage() {
             dataKey={name}
             stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
             strokeWidth={2}
-            dot={showDots ? { r: 3 } : false}
+            strokeOpacity={getItemOpacity('mpg', name)}
+            dot={showDots && getItemOpacity('mpg', name) > 0 ? { r: 3 } : false}
             connectNulls
             animationDuration={250}
           />
@@ -356,15 +466,27 @@ export default function AnalyticsPage() {
           }}
         />
         <Legend
-          onClick={(data) => handleLegendClick(data.dataKey as string)}
+          onClick={(data, _index, event) => {
+            const nativeEvent = event as unknown as React.MouseEvent
+            handleLegendClick('spending', data.dataKey as string, nativeEvent.ctrlKey || nativeEvent.metaKey)
+          }}
           wrapperStyle={{ cursor: 'pointer' }}
           formatter={(value) => {
             const label = value === 'totalCost' ? 'Total Cost' : value === 'gallons' ? 'Gallons' : value
-            return <span style={{ color: hiddenBars.has(String(value)) ? '#9ca3af' : undefined, textDecoration: hiddenBars.has(String(value)) ? 'line-through' : undefined }}>{label}</span>
+            const opacity = getItemOpacity('spending', String(value))
+            return (
+              <span style={{
+                color: opacity === 0 ? '#9ca3af' : undefined,
+                textDecoration: opacity === 0 ? 'line-through' : undefined,
+                opacity: opacity === 0 ? 0.5 : opacity < 1 ? 0.4 : 1,
+              }}>
+                {label}
+              </span>
+            )
           }}
         />
-        <Bar dataKey="totalCost" fill="#3b82f6" radius={[4, 4, 0, 0]} animationDuration={250} hide={hiddenBars.has('totalCost')} />
-        <Bar dataKey="gallons" fill="#10b981" radius={[4, 4, 0, 0]} animationDuration={250} hide={hiddenBars.has('gallons')} />
+        <Bar dataKey="totalCost" fill="#3b82f6" radius={[4, 4, 0, 0]} animationDuration={250} hide={isItemHidden('spending', 'totalCost')} fillOpacity={getItemOpacity('spending', 'totalCost')} />
+        <Bar dataKey="gallons" fill="#10b981" radius={[4, 4, 0, 0]} animationDuration={250} hide={isItemHidden('spending', 'gallons')} fillOpacity={getItemOpacity('spending', 'gallons')} />
       </BarChart>
     </ResponsiveContainer>
   )
@@ -389,7 +511,25 @@ export default function AnalyticsPage() {
           labelFormatter={(label) => String(label)}
           formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
         />
-        <Legend />
+        <Legend
+          onClick={(data, _index, event) => {
+            const nativeEvent = event as unknown as React.MouseEvent
+            handleLegendClick('costPerMile', data.dataKey as string, nativeEvent.ctrlKey || nativeEvent.metaKey)
+          }}
+          wrapperStyle={{ cursor: 'pointer' }}
+          formatter={(value) => {
+            const opacity = getItemOpacity('costPerMile', String(value))
+            return (
+              <span style={{
+                color: opacity === 0 ? '#9ca3af' : undefined,
+                textDecoration: opacity === 0 ? 'line-through' : undefined,
+                opacity: opacity === 0 ? 0.5 : opacity < 1 ? 0.4 : 1,
+              }}>
+                {value}
+              </span>
+            )
+          }}
+        />
         {vehicleNames.map((name, i) => (
           <Line
             key={name}
@@ -397,7 +537,64 @@ export default function AnalyticsPage() {
             dataKey={name}
             stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
             strokeWidth={2}
-            dot={showDots ? { r: 3 } : false}
+            strokeOpacity={getItemOpacity('costPerMile', name)}
+            dot={showDots && getItemOpacity('costPerMile', name) > 0 ? { r: 3 } : false}
+            connectNulls
+            animationDuration={250}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  )
+
+  const renderMilesChart = (height: number) => (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={monthlyMilesChartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis
+          dataKey="date"
+          tickFormatter={formatMonthLabel}
+          stroke={axisColor}
+          fontSize={12}
+        />
+        <YAxis
+          stroke={axisColor}
+          fontSize={12}
+          tickFormatter={(v: number) => `${Math.round(v)}`}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          labelFormatter={(label) => formatMonthLabel(String(label))}
+          formatter={(value) => [`${Number(value).toFixed(0)} mi`, '']}
+        />
+        <Legend
+          onClick={(data, _index, event) => {
+            const nativeEvent = event as unknown as React.MouseEvent
+            handleLegendClick('miles', data.dataKey as string, nativeEvent.ctrlKey || nativeEvent.metaKey)
+          }}
+          wrapperStyle={{ cursor: 'pointer' }}
+          formatter={(value) => {
+            const opacity = getItemOpacity('miles', String(value))
+            return (
+              <span style={{
+                color: opacity === 0 ? '#9ca3af' : undefined,
+                textDecoration: opacity === 0 ? 'line-through' : undefined,
+                opacity: opacity === 0 ? 0.5 : opacity < 1 ? 0.4 : 1,
+              }}>
+                {value}
+              </span>
+            )
+          }}
+        />
+        {vehicleNames.map((name, i) => (
+          <Line
+            key={name}
+            type="monotone"
+            dataKey={name}
+            stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
+            strokeWidth={2}
+            strokeOpacity={getItemOpacity('miles', name)}
+            dot={showDots && getItemOpacity('miles', name) > 0 ? { r: 3 } : false}
             connectNulls
             animationDuration={250}
           />
@@ -469,6 +666,115 @@ export default function AnalyticsPage() {
               </button>
             </div>
 
+            {/* KPI Stats */}
+            {data && data.kpiStats.overview.totalFillups > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+                <button
+                  onClick={() => setKpiExpanded(prev => !prev)}
+                  className="w-full flex items-center justify-between p-4"
+                >
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white">Key Metrics</h2>
+                  <svg className={`w-5 h-5 text-gray-400 transition-transform ${kpiExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {kpiExpanded && (
+                  <div className="px-4 pb-4 space-y-4">
+                    {/* Fuel Economy */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Fuel Economy</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {data.kpiStats.mpg.average ? `${data.kpiStats.mpg.average} MPG` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Average</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {data.kpiStats.mpg.recent ? `${data.kpiStats.mpg.recent} MPG` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Recent (last 5)</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                            {data.kpiStats.mpg.best ? `${data.kpiStats.mpg.best} MPG` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Best</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-red-600 dark:text-red-400">
+                            {data.kpiStats.mpg.worst ? `${data.kpiStats.mpg.worst} MPG` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Worst</p>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Costs */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Costs</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            ${data.kpiStats.overview.totalCost.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Total Spent</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {data.kpiStats.costs.costPerMile ? `$${data.kpiStats.costs.costPerMile.toFixed(2)}` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Per Mile</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                            {data.kpiStats.costs.averagePricePerGallon ? `$${data.kpiStats.costs.averagePricePerGallon.toFixed(3)}` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg $/Gallon</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                            {data.kpiStats.costs.averageCostPerFillup ? `$${data.kpiStats.costs.averageCostPerFillup.toFixed(2)}` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg Fillup</p>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Activity */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Activity</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {data.kpiStats.overview.totalFillups}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Total Fillups</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {data.kpiStats.overview.totalMiles.toLocaleString()}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Miles Tracked</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                            {data.kpiStats.frequency.averageDaysBetweenFillups ? `${data.kpiStats.frequency.averageDaysBetweenFillups} days` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg Between Fillups</p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                            {data.kpiStats.frequency.averageMilesBetweenFillups ? `${data.kpiStats.frequency.averageMilesBetweenFillups.toLocaleString()} mi` : '--'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Avg Miles/Fillup</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-6">
               {/* Price per Gallon Chart */}
               {data!.priceHistory.length > 0 && (
@@ -513,6 +819,17 @@ export default function AnalyticsPage() {
                   {renderCostPerMileChart(250)}
                 </div>
               )}
+
+              {/* Miles per Month Chart */}
+              {data!.monthlyMiles.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-semibold text-gray-900 dark:text-white">Miles per Month</h2>
+                    {expandButton('miles', 'Miles per Month')}
+                  </div>
+                  {renderMilesChart(250)}
+                </div>
+              )}
             </div>
 
             {/* Fullscreen Chart Modals */}
@@ -527,6 +844,9 @@ export default function AnalyticsPage() {
             </ChartModal>
             <ChartModal isOpen={expandedChart === 'costPerMile'} onClose={() => setExpandedChart(null)} title="Cost per Mile">
               {renderCostPerMileChart(500)}
+            </ChartModal>
+            <ChartModal isOpen={expandedChart === 'miles'} onClose={() => setExpandedChart(null)} title="Miles per Month">
+              {renderMilesChart(500)}
             </ChartModal>
           </>
         )}

@@ -103,7 +103,7 @@ test.describe('Phase 16 - Desktop Sidebar & Analytics Charts', () => {
     await expect(dotButton).toHaveText('Hide Data Points')
   })
 
-  test('monthly spending legend toggle', async ({ page }) => {
+  test('monthly spending legend focus mode', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 })
     await login(page)
     await page.goto('/analytics')
@@ -112,7 +112,7 @@ test.describe('Phase 16 - Desktop Sidebar & Analytics Charts', () => {
     // Check if empty state is shown
     const emptyState = page.locator('text=Log some fillups to see your analytics!')
     if (await emptyState.isVisible()) {
-      test.skip(true, 'No fillup data available - skipping legend toggle test')
+      test.skip(true, 'No fillup data available - skipping legend focus test')
       return
     }
 
@@ -120,31 +120,41 @@ test.describe('Phase 16 - Desktop Sidebar & Analytics Charts', () => {
     const spendingHeading = page.locator('h2', { hasText: 'Monthly Spending' })
     await expect(spendingHeading).toBeVisible()
 
-    // The card structure is: div.bg-white > div (header with h2 + expand) + ResponsiveContainer
-    // Navigate up to the card container that holds both the heading and the chart
     const spendingCard = spendingHeading.locator('..').locator('..')
-    const legendItem = spendingCard.locator('.recharts-legend-item').first()
-    await expect(legendItem).toBeVisible()
+    const legendItems = spendingCard.locator('.recharts-legend-item')
+    const count = await legendItems.count()
+    expect(count).toBeGreaterThanOrEqual(2)
 
-    // Click on the legend item to toggle it
-    await legendItem.click()
-
-    // Wait for React re-render after state update
+    // Click first legend item to enter focus mode (dims the other items)
+    await legendItems.first().click()
     await page.waitForTimeout(500)
 
-    // Verify the clicked legend item text gets strikethrough styling
-    // Use page.evaluate for reliable DOM inspection of inline styles
-    const hasStrikethrough = await page.evaluate(() => {
-      const spans = document.querySelectorAll('.recharts-legend-item span')
-      for (const span of spans) {
-        const el = span as HTMLElement
-        if (el.style.textDecoration === 'line-through') return true
-        if (el.style.textDecorationLine === 'line-through') return true
-        const computed = window.getComputedStyle(el)
-        if (computed.textDecorationLine === 'line-through') return true
+    // Verify focus mode: the non-focused legend items should be dimmed (opacity < 1)
+    const hasDimmedItem = await page.evaluate(() => {
+      const items = document.querySelectorAll('.recharts-legend-item span')
+      for (const item of items) {
+        const el = item as HTMLElement
+        const opacity = parseFloat(el.style.opacity)
+        if (!isNaN(opacity) && opacity < 1) return true
       }
       return false
     })
-    expect(hasStrikethrough).toBe(true)
+    expect(hasDimmedItem).toBe(true)
+
+    // Click the same item again to defocus (all items back to normal)
+    await legendItems.first().click()
+    await page.waitForTimeout(500)
+
+    // Verify all items are back to full opacity
+    const allFullOpacity = await page.evaluate(() => {
+      const items = document.querySelectorAll('.recharts-legend-item span')
+      for (const item of items) {
+        const el = item as HTMLElement
+        const opacity = parseFloat(el.style.opacity)
+        if (!isNaN(opacity) && opacity < 1) return false
+      }
+      return true
+    })
+    expect(allFullOpacity).toBe(true)
   })
 })
