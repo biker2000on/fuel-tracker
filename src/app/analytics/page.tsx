@@ -366,6 +366,19 @@ export default function AnalyticsPage() {
     return state.hiddenItems.has(dataKey)
   }
 
+  const getDotConfig = (chartKey: string, name: string) => {
+    const opacity = getItemOpacity(chartKey, name)
+    if (!showDots || opacity === 0) return false
+    if (opacity < 1) return { r: 3, fillOpacity: opacity, strokeOpacity: opacity }
+    return { r: 3 }
+  }
+
+  const getActiveDotConfig = (chartKey: string, name: string) => {
+    const opacity = getItemOpacity(chartKey, name)
+    if (opacity < 1) return false
+    return { r: 5 }
+  }
+
   const expandButton = (chartKey: string, chartTitle: string) => (
     <button
       onClick={() => setExpandedChart(chartKey)}
@@ -428,7 +441,8 @@ export default function AnalyticsPage() {
             stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
             strokeWidth={2}
             strokeOpacity={getItemOpacity('price', name)}
-            dot={showDots && getItemOpacity('price', name) > 0 ? { r: 3 } : false}
+            dot={getDotConfig('price', name)}
+            activeDot={getActiveDotConfig('price', name)}
             connectNulls
             animationDuration={250}
           />
@@ -487,7 +501,8 @@ export default function AnalyticsPage() {
             stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
             strokeWidth={2}
             strokeOpacity={getItemOpacity('mpg', name)}
-            dot={showDots && getItemOpacity('mpg', name) > 0 ? { r: 3 } : false}
+            dot={getDotConfig('mpg', name)}
+            activeDot={getActiveDotConfig('mpg', name)}
             connectNulls
             animationDuration={250}
           />
@@ -596,7 +611,8 @@ export default function AnalyticsPage() {
             stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
             strokeWidth={2}
             strokeOpacity={getItemOpacity('costPerMile', name)}
-            dot={showDots && getItemOpacity('costPerMile', name) > 0 ? { r: 3 } : false}
+            dot={getDotConfig('costPerMile', name)}
+            activeDot={getActiveDotConfig('costPerMile', name)}
             connectNulls
             animationDuration={250}
           />
@@ -652,7 +668,8 @@ export default function AnalyticsPage() {
             stroke={vehicleColorMap.get(name) || VEHICLE_COLORS[i % VEHICLE_COLORS.length]}
             strokeWidth={2}
             strokeOpacity={getItemOpacity('miles', name)}
-            dot={showDots && getItemOpacity('miles', name) > 0 ? { r: 3 } : false}
+            dot={getDotConfig('miles', name)}
+            activeDot={getActiveDotConfig('miles', name)}
             connectNulls
             animationDuration={250}
           />
