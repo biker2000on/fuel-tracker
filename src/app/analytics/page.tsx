@@ -118,6 +118,12 @@ function formatDateLabel(dateStr: string): string {
   return `${month}/${day}`
 }
 
+function formatTimestampLabel(ts: number): string {
+  const d = new Date(ts)
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${monthNames[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
+}
+
 function formatMonthLabel(monthStr: string): string {
   const [year, month] = monthStr.split('-')
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -411,7 +417,7 @@ export default function AnalyticsPage() {
         />
         <Tooltip
           contentStyle={tooltipStyle}
-          labelFormatter={(label) => String(label)}
+          labelFormatter={(label) => formatTimestampLabel(Number(label))}
           formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
         />
         <Legend
@@ -471,7 +477,7 @@ export default function AnalyticsPage() {
         />
         <Tooltip
           contentStyle={tooltipStyle}
-          labelFormatter={(label) => String(label)}
+          labelFormatter={(label) => formatTimestampLabel(Number(label))}
           formatter={(value) => [Number(value).toFixed(2), '']}
         />
         <Legend
@@ -581,7 +587,7 @@ export default function AnalyticsPage() {
         />
         <Tooltip
           contentStyle={tooltipStyle}
-          labelFormatter={(label) => String(label)}
+          labelFormatter={(label) => formatTimestampLabel(Number(label))}
           formatter={(value) => [`$${Number(value).toFixed(3)}`, '']}
         />
         <Legend
