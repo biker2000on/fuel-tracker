@@ -79,7 +79,8 @@ export async function GET() {
       year: true,
       make: true,
       model: true,
-      photoUrl: true
+      photoUrl: true,
+      retiredAt: true
     }
   })
 
@@ -121,9 +122,10 @@ export async function GET() {
     }
   })
 
-  // Get per-vehicle aggregations
+  // Get per-vehicle aggregations (retired vehicles excluded from the overview)
+  const activeVehicles = vehicles.filter((v) => !v.retiredAt)
   const vehicleSummaries: VehicleSummary[] = await Promise.all(
-    vehicles.map(async (vehicle) => {
+    activeVehicles.map(async (vehicle) => {
       // Get all fillups for this vehicle to compute stats
       const vehicleFillups = await prisma.fillup.findMany({
         where: { vehicleId: vehicle.id },
@@ -178,7 +180,7 @@ export async function GET() {
   })
 
   const totals: DashboardTotals = {
-    totalVehicles: vehicles.length,
+    totalVehicles: activeVehicles.length,
     totalFillupsThisMonth: monthlyFillups.length,
     totalSpentThisMonth: Math.round(monthlyFillups.reduce((sum, f) => sum + f.totalCost, 0) * 100) / 100
   }

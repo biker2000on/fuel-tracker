@@ -35,6 +35,7 @@ export interface CachedVehicle {
   tankSize: number | null
   fuelType: string
   photoUrl: string | null
+  retiredAt?: string | null
   groupId: string
   groupName: string
   createdAt: string

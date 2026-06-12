@@ -24,6 +24,7 @@ interface Vehicle {
   tankSize: number | null
   fuelType: string
   photoUrl: string | null
+  retiredAt?: string | null
   groupId: string
   groupName: string
   createdAt: string
@@ -88,6 +89,7 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isTogglingRetired, setIsTogglingRetired] = useState(false)
   const [isFromCache, setIsFromCache] = useState(false)
   const [cacheAge, setCacheAge] = useState<number | null>(null)
 
@@ -276,6 +278,29 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
     return 'text-yellow-600 dark:text-yellow-400'
   }
 
+  async function handleToggleRetired() {
+    if (!vehicle) return
+    setIsTogglingRetired(true)
+    try {
+      const response = await fetch(`/api/vehicles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retired: !vehicle.retiredAt }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setVehicle(data)
+      } else {
+        const data = await response.json()
+        setError(data.error || 'Failed to update vehicle')
+      }
+    } catch {
+      setError('An error occurred. Please try again.')
+    } finally {
+      setIsTogglingRetired(false)
+    }
+  }
+
   async function handleDelete() {
     setIsDeleting(true)
     try {
@@ -355,8 +380,8 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-      <div className="mx-auto max-w-md">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 lg:px-8">
+      <div className="mx-auto max-w-md lg:max-w-5xl">
         <div className="mb-6">
           <Link
             href="/vehicles"
@@ -387,6 +412,8 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           </div>
         )}
 
+        {/* Two-column layout on desktop: vehicle card left, stats/fillups right */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           {/* Photo */}
           <div className="aspect-video relative bg-gray-100 dark:bg-gray-700">
@@ -425,22 +452,31 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Vehicle Details */}
           <div className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {vehicle.name}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {vehicle.name}
+              </h1>
+              {vehicle.retiredAt && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">
+                  Retired
+                </span>
+              )}
+            </div>
             <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
               {vehicle.year} {vehicle.make} {vehicle.model}
             </p>
 
-            {/* Log Fillup - Primary Action */}
-            <div className="mt-4">
-              <Link
-                href={`/fillups/new?vehicleId=${id}`}
-                className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-center font-semibold rounded-lg shadow-sm transition-colors"
-              >
-                Log Fillup
-              </Link>
-            </div>
+            {/* Log Fillup - Primary Action (hidden for retired vehicles) */}
+            {!vehicle.retiredAt && (
+              <div className="mt-4">
+                <Link
+                  href={`/fillups/new?vehicleId=${id}`}
+                  className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-center font-semibold rounded-lg shadow-sm transition-colors"
+                >
+                  Log Fillup
+                </Link>
+              </div>
+            )}
 
             <div className="mt-6 space-y-4">
               <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
@@ -484,6 +520,13 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
                     Import
                   </Link>
                   <button
+                    onClick={handleToggleRetired}
+                    disabled={isTogglingRetired}
+                    className="flex-1 py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md transition-colors disabled:opacity-50"
+                  >
+                    {isTogglingRetired ? '...' : vehicle.retiredAt ? 'Unretire' : 'Retire'}
+                  </button>
+                  <button
                     onClick={() => setShowDeleteConfirm(true)}
                     className="flex-1 py-2 px-4 bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-200 font-medium rounded-md transition-colors"
                   >
@@ -499,8 +542,10 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
+        {/* Right column on desktop: stats + fillups */}
+        <div>
         {/* Statistics Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-6 lg:mt-0">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Statistics
           </h2>
@@ -720,6 +765,8 @@ export default function VehicleDetailPage({ params }: { params: Promise<{ id: st
               })}
             </div>
           )}
+        </div>
+        </div>
         </div>
 
         {/* Delete Confirmation Modal */}

@@ -61,6 +61,7 @@ export async function GET(request: Request, context: RouteContext) {
     tankSize: vehicle.tankSize,
     fuelType: vehicle.fuelType,
     photoUrl: vehicle.photoUrl,
+    retiredAt: vehicle.retiredAt ? vehicle.retiredAt.toISOString() : null,
     groupId: vehicle.groupId,
     groupName: vehicle.group.name,
     createdAt: vehicle.createdAt.toISOString(),
@@ -88,6 +89,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     tankSize?: number | null
     fuelType?: string
     photoUrl?: string | null
+    retired?: boolean
   }
 
   try {
@@ -137,6 +139,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     tankSize?: number | null
     fuelType?: string
     photoUrl?: string | null
+    retiredAt?: Date | null
   } = {}
 
   // Validate and add fields if provided
@@ -255,6 +258,19 @@ export async function PATCH(request: Request, context: RouteContext) {
     updateData.photoUrl = body.photoUrl
   }
 
+  if (body.retired !== undefined) {
+    if (typeof body.retired !== 'boolean') {
+      return NextResponse.json(
+        { error: 'Retired must be a boolean' },
+        { status: 400 }
+      )
+    }
+    // Retiring preserves the existing date if already retired
+    updateData.retiredAt = body.retired
+      ? (vehicle.retiredAt ?? new Date())
+      : null
+  }
+
   // Check if there's anything to update
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json(
@@ -281,6 +297,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       tankSize: updatedVehicle.tankSize,
       fuelType: updatedVehicle.fuelType,
       photoUrl: updatedVehicle.photoUrl,
+      retiredAt: updatedVehicle.retiredAt ? updatedVehicle.retiredAt.toISOString() : null,
       groupId: updatedVehicle.groupId,
       groupName: updatedVehicle.group.name,
       createdAt: updatedVehicle.createdAt.toISOString(),

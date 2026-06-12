@@ -44,6 +44,7 @@ export async function GET() {
     tankSize: vehicle.tankSize,
     fuelType: vehicle.fuelType,
     photoUrl: vehicle.photoUrl,
+    retiredAt: vehicle.retiredAt ? vehicle.retiredAt.toISOString() : null,
     groupId: vehicle.groupId,
     groupName: vehicle.group.name,
     createdAt: vehicle.createdAt.toISOString(),

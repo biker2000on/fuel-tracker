@@ -16,6 +16,7 @@ interface Vehicle {
   make: string
   model: string
   photoUrl: string | null
+  retiredAt?: string | null
 }
 
 function NewFillupForm() {
@@ -130,7 +131,8 @@ function NewFillupForm() {
       const response = await fetch('/api/vehicles')
       if (response.ok) {
         const data = await response.json()
-        setVehicles(data.vehicles)
+        // Retired vehicles are excluded from the fillup chooser
+        setVehicles(data.vehicles.filter((v: Vehicle) => !v.retiredAt))
       }
     } catch {
       setError('Failed to load vehicles')
@@ -314,7 +316,7 @@ function NewFillupForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="mx-auto max-w-md px-4 py-6 pb-24">
+      <div className="mx-auto max-w-md md:max-w-2xl px-4 py-6 pb-24 md:pb-8">
         {/* Header */}
         <div className="mb-6">
           <Link
@@ -376,7 +378,7 @@ function NewFillupForm() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Select Vehicle
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {vehicles.map((vehicle) => (
                 <button
                   key={vehicle.id}
@@ -704,17 +706,19 @@ function NewFillupForm() {
         </form>
       </div>
 
-      {/* Fixed Submit Button */}
-      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-        <button
-          type="submit"
-          form="fillup-form"
-          onClick={handleSubmit}
-          disabled={isSubmitting || !selectedVehicleId || !gallons || !pricePerGallon || !odometer}
-          className="w-full py-4 px-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isSubmitting ? 'Logging...' : 'Log Fillup'}
-        </button>
+      {/* Submit Button: fixed bar on mobile, inline on desktop */}
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 md:static md:bottom-auto md:bg-transparent md:dark:bg-transparent md:border-0 md:p-0">
+        <div className="md:mx-auto md:max-w-2xl md:px-4 md:pb-10">
+          <button
+            type="submit"
+            form="fillup-form"
+            onClick={handleSubmit}
+            disabled={isSubmitting || !selectedVehicleId || !gallons || !pricePerGallon || !odometer}
+            className="w-full py-4 px-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-semibold rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSubmitting ? 'Logging...' : 'Log Fillup'}
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -18,10 +18,72 @@ interface Vehicle {
   tankSize: number | null
   fuelType: string
   photoUrl: string | null
+  retiredAt?: string | null
   groupId: string
   groupName: string
   createdAt: string
   updatedAt: string
+}
+
+function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+  const isRetired = Boolean(vehicle.retiredAt)
+  return (
+    <Link
+      href={`/vehicles/${vehicle.id}`}
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${
+        isRetired ? 'opacity-60' : ''
+      }`}
+    >
+      <div className="aspect-video relative bg-gray-100 dark:bg-gray-700">
+        {vehicle.photoUrl ? (
+          <Image
+            src={vehicle.photoUrl}
+            alt={vehicle.name}
+            fill
+            className={`object-cover ${isRetired ? 'grayscale' : ''}`}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <svg
+              className="w-16 h-16 text-gray-400 dark:text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"
+              />
+            </svg>
+          </div>
+        )}
+        {isRetired && (
+          <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-medium bg-gray-800/80 text-white rounded-full">
+            Retired
+          </span>
+        )}
+      </div>
+      <div className="p-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
+          {vehicle.name}
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {vehicle.year} {vehicle.make} {vehicle.model}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+          {vehicle.groupName}
+        </p>
+      </div>
+    </Link>
+  )
 }
 
 export default function VehiclesPage() {
@@ -89,8 +151,8 @@ export default function VehiclesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-      <div className="mx-auto max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 lg:px-8">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6">
           <Link
             href="/"
@@ -135,59 +197,26 @@ export default function VehiclesPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vehicles.map((vehicle) => (
-              <Link
-                key={vehicle.id}
-                href={`/vehicles/${vehicle.id}`}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-              >
-                <div className="aspect-video relative bg-gray-100 dark:bg-gray-700">
-                  {vehicle.photoUrl ? (
-                    <Image
-                      src={vehicle.photoUrl}
-                      alt={vehicle.name}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg
-                        className="w-16 h-16 text-gray-400 dark:text-gray-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"
-                        />
-                      </svg>
-                    </div>
-                  )}
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {vehicles.filter(v => !v.retiredAt).map((vehicle) => (
+                <VehicleCard key={vehicle.id} vehicle={vehicle} />
+              ))}
+            </div>
+
+            {vehicles.some(v => v.retiredAt) && (
+              <>
+                <h2 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mt-8 mb-4">
+                  Retired
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {vehicles.filter(v => v.retiredAt).map((vehicle) => (
+                    <VehicleCard key={vehicle.id} vehicle={vehicle} />
+                  ))}
                 </div>
-                <div className="p-4">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                    {vehicle.name}
-                  </h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {vehicle.year} {vehicle.make} {vehicle.model}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                    {vehicle.groupName}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
