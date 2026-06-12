@@ -215,7 +215,7 @@ function ImportForm() {
   if (vehicles.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-        <div className="mx-auto max-w-lg">
+        <div className="mx-auto max-w-lg md:max-w-3xl">
           <div className="mb-6">
             <Link
               href="/"
@@ -248,7 +248,7 @@ function ImportForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 pb-24">
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-lg md:max-w-3xl">
         {/* Header */}
         <div className="mb-6">
           <Link
@@ -455,7 +455,7 @@ function ImportForm() {
 
         {/* Import Button */}
         <div className="fixed bottom-16 md:bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-          <div className="max-w-lg mx-auto">
+          <div className="max-w-lg md:max-w-3xl mx-auto">
             <button
               type="button"
               onClick={handleImport}

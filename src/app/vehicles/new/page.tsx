@@ -194,7 +194,7 @@ export default function NewVehiclePage() {
   if (groups.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-md md:max-w-2xl">
           <div className="mb-6">
             <Link
               href="/vehicles"
@@ -225,7 +225,7 @@ export default function NewVehiclePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-      <div className="mx-auto max-w-md">
+      <div className="mx-auto max-w-md md:max-w-2xl">
         <div className="mb-6">
           <Link
             href="/vehicles"

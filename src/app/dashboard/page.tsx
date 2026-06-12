@@ -197,8 +197,8 @@ export default function DashboardPage() {
     (isFromCache && cachedVehicles && cachedVehicles.length > 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-      <div className="mx-auto max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 lg:px-8">
+      <div className="mx-auto max-w-6xl">
         {/* Offline/Cache Notice */}
         {isFromCache && (
           <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
@@ -251,8 +251,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Two-column layout on desktop */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
         {/* Recent Activity Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6 lg:mb-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Recent Activity
@@ -345,7 +347,7 @@ export default function DashboardPage() {
 
           {/* Show cached vehicles when offline */}
           {isFromCache && cachedVehicles && cachedVehicles.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
               {cachedVehicles.map((vehicle) => (
                 <Link
                   key={vehicle.id}
@@ -416,7 +418,7 @@ export default function DashboardPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
               {dashboardData.vehicleSummaries.map((vehicle) => (
                 <Link
                   key={vehicle.id}
@@ -494,6 +496,7 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

@@ -250,8 +250,8 @@ export default function AnalyticsPage() {
 
   if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-        <div className="mx-auto max-w-2xl">
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 lg:px-8">
+        <div className="mx-auto max-w-2xl lg:max-w-5xl">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32" />
             <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded" />
@@ -269,8 +269,8 @@ export default function AnalyticsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-        <div className="mx-auto max-w-2xl">
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 lg:px-8">
+        <div className="mx-auto max-w-2xl lg:max-w-5xl">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Analytics</h1>
           <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
@@ -686,7 +686,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 pb-24">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl lg:max-w-5xl">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Analytics</h1>
 
         {/* Filters */}
