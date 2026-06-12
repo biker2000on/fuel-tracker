@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist, CacheFirst, NetworkFirst, NetworkOnly } from "serwist";
+import { Serwist, CacheFirst, NetworkFirst, NetworkOnly, ExpirationPlugin } from "serwist";
 
 // This declares the value of `injectionPoint` to TypeScript.
 // `injectionPoint` is the string that will be replaced by the
@@ -33,57 +33,63 @@ const runtimeCaching = [
       cacheName: "images",
     }),
   },
-  // API GET - Vehicles list (cache for quick offline access)
+  // Session check - NetworkFirst so useSession() resolves while offline
+  // instead of treating the user as unauthenticated.
   {
     matcher: ({ request, url }: { request: Request; url: URL }) => {
-      return request.method === "GET" && url.pathname === "/api/vehicles";
+      return request.method === "GET" && url.pathname === "/api/auth/session";
     },
     handler: new NetworkFirst({
-      cacheName: "api-vehicles",
+      cacheName: "api-auth-session",
       networkTimeoutSeconds: 3,
     }),
   },
-  // API GET - Dashboard (NetworkFirst, stale data acceptable briefly)
+  // All other auth endpoints (csrf, signin, callback, providers) must never
+  // be served from cache.
+  {
+    matcher: ({ url }: { url: URL }) => url.pathname.startsWith("/api/auth/"),
+    handler: new NetworkOnly(),
+  },
+  // API mutations - NetworkOnly (handled by offline queue in app)
   {
     matcher: ({ request, url }: { request: Request; url: URL }) => {
-      return request.method === "GET" && url.pathname === "/api/dashboard";
-    },
-    handler: new NetworkFirst({
-      cacheName: "api-dashboard",
-      networkTimeoutSeconds: 3,
-    }),
-  },
-  // API GET - Fillups list (NetworkFirst for fetching history)
-  {
-    matcher: ({ request, url }: { request: Request; url: URL }) => {
-      return request.method === "GET" && url.pathname.startsWith("/api/fillups");
-    },
-    handler: new NetworkFirst({
-      cacheName: "api-fillups",
-      networkTimeoutSeconds: 3,
-    }),
-  },
-  // API GET - Analytics (NetworkFirst, acceptable to show slightly stale data)
-  {
-    matcher: ({ request, url }: { request: Request; url: URL }) => {
-      return request.method === "GET" && url.pathname === "/api/analytics";
-    },
-    handler: new NetworkFirst({
-      cacheName: "api-analytics",
-      networkTimeoutSeconds: 5,
-    }),
-  },
-  // API POST/PUT/DELETE - NetworkOnly (handled by offline queue in app)
-  {
-    matcher: ({ request }: { request: Request }) => {
-      return (
-        request.url.includes("/api/") &&
-        (request.method === "POST" || request.method === "PUT" || request.method === "DELETE")
-      );
+      return url.pathname.startsWith("/api/") && request.method !== "GET";
     },
     handler: new NetworkOnly(),
   },
-  // Include default cache for other requests
+  // All remaining API GETs (vehicles, dashboard, fillups, analytics, stats,
+  // profile, groups, ...) - NetworkFirst so every screen has offline data.
+  {
+    matcher: ({ request, url }: { request: Request; url: URL }) => {
+      return request.method === "GET" && url.pathname.startsWith("/api/");
+    },
+    handler: new NetworkFirst({
+      cacheName: "api-get",
+      networkTimeoutSeconds: 4,
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 200,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        }),
+      ],
+    }),
+  },
+  // Page navigations - NetworkFirst so previously visited pages keep working
+  // offline; the /~offline fallback only kicks in for never-visited pages.
+  {
+    matcher: ({ request }: { request: Request }) => request.destination === "document",
+    handler: new NetworkFirst({
+      cacheName: "pages",
+      networkTimeoutSeconds: 4,
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 50,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        }),
+      ],
+    }),
+  },
+  // Include default cache for other requests (RSC payloads, etc.)
   ...defaultCache,
 ];
 
