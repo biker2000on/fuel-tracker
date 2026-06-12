@@ -29,6 +29,15 @@ export default function ProfilePage() {
   const [thousandthsSaveSuccess, setThousandthsSaveSuccess] = useState(false)
   const [adjustedFillupsCount, setAdjustedFillupsCount] = useState<number | null>(null)
 
+  // SSO / OIDC state
+  const [oidcEnabled, setOidcEnabled] = useState(false)
+  const [oidcLinked, setOidcLinked] = useState(false)
+  const [oidcProviderName, setOidcProviderName] = useState('PocketID')
+  const [hasPassword, setHasPassword] = useState(true)
+  const [oidcMessage, setOidcMessage] = useState<string | null>(null)
+  const [oidcError, setOidcError] = useState<string | null>(null)
+  const [isLinking, setIsLinking] = useState(false)
+
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -53,11 +62,64 @@ export default function ProfilePage() {
           if (data.defaultThousandths !== undefined) {
             setDefaultThousandths(data.defaultThousandths)
           }
+          if (data.oidcEnabled !== undefined) {
+            setOidcEnabled(Boolean(data.oidcEnabled))
+            setOidcLinked(Boolean(data.oidcLinked))
+            setOidcProviderName(data.oidcProviderName || 'PocketID')
+            setHasPassword(Boolean(data.hasPassword))
+          }
         })
         .catch(() => {})
         .finally(() => setIsLoadingProfile(false))
     }
   }, [status])
+
+  // Surface the result of a completed OIDC link flow (?oidc=linked)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('oidc') === 'linked') {
+      setOidcMessage('Account linked successfully')
+      window.history.replaceState({}, '', '/profile')
+      setTimeout(() => setOidcMessage(null), 5000)
+    } else if (params.get('error')) {
+      setOidcError('Linking failed. This identity may already be linked to another account.')
+      window.history.replaceState({}, '', '/profile')
+    }
+  }, [])
+
+  const handleLinkOidc = async () => {
+    setIsLinking(true)
+    setOidcError(null)
+    try {
+      const res = await fetch('/api/auth/oidc/link', { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to start linking')
+      }
+      const { signIn } = await import('next-auth/react')
+      await signIn('pocketid', { callbackUrl: '/profile?oidc=linked' })
+    } catch (err) {
+      setOidcError(err instanceof Error ? err.message : 'Failed to start linking')
+      setIsLinking(false)
+    }
+  }
+
+  const handleUnlinkOidc = async () => {
+    setOidcError(null)
+    setOidcMessage(null)
+    try {
+      const res = await fetch('/api/auth/oidc/unlink', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to unlink')
+      }
+      setOidcLinked(false)
+      setOidcMessage('Account unlinked')
+      setTimeout(() => setOidcMessage(null), 5000)
+    } catch (err) {
+      setOidcError(err instanceof Error ? err.message : 'Failed to unlink')
+    }
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
@@ -125,7 +187,7 @@ export default function ProfilePage() {
 
   // Password validation
   const passwordValidation = {
-    allFieldsFilled: currentPassword && newPassword && confirmPassword,
+    allFieldsFilled: (!hasPassword || currentPassword) && newPassword && confirmPassword,
     newPasswordLongEnough: newPassword.length >= 8,
     passwordsMatch: newPassword === confirmPassword,
   }
@@ -146,7 +208,9 @@ export default function ProfilePage() {
       const res = await fetch('/api/user/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify(
+          hasPassword ? { currentPassword, newPassword } : { newPassword }
+        ),
       })
 
       if (!res.ok) {
@@ -158,6 +222,7 @@ export default function ProfilePage() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
+      setHasPassword(true)
       setPasswordSuccess(true)
       setTimeout(() => setPasswordSuccess(false), 3000)
     } catch (err) {
@@ -183,8 +248,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8">
-      <div className="mx-auto max-w-md">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800 px-4 py-8 lg:px-8">
+      <div className="mx-auto max-w-md lg:max-w-5xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Link
@@ -211,8 +276,10 @@ export default function ProfilePage() {
           </h1>
         </div>
 
+        {/* Two-column card grid on desktop */}
+        <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
         {/* Account Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4 lg:mb-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Account
@@ -292,7 +359,7 @@ export default function ProfilePage() {
         </div>
 
         {/* App Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-4 lg:mb-0">
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
             App
           </h2>
@@ -415,10 +482,58 @@ export default function ProfilePage() {
         </div>
 
         {/* Security Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-4 mb-20">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-4 lg:mt-0 mb-20 lg:mb-0">
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
             Security
           </h2>
+
+          {oidcEnabled && (
+            <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+              <p className="text-gray-900 dark:text-white">Single Sign-On</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                {oidcLinked
+                  ? `Your account is linked to ${oidcProviderName}.`
+                  : `Link your account to ${oidcProviderName} to sign in without a password.`}
+              </p>
+
+              {oidcMessage && (
+                <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
+                  <p className="text-xs text-green-700 dark:text-green-300">{oidcMessage}</p>
+                </div>
+              )}
+
+              {oidcError && (
+                <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md">
+                  <p className="text-xs text-red-700 dark:text-red-300">{oidcError}</p>
+                </div>
+              )}
+
+              {oidcLinked ? (
+                <button
+                  type="button"
+                  onClick={handleUnlinkOidc}
+                  disabled={!hasPassword}
+                  className="py-2 px-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 dark:text-white text-sm font-medium rounded-md transition-colors"
+                >
+                  Unlink {oidcProviderName}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLinkOidc}
+                  disabled={isLinking}
+                  className="py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium rounded-md transition-colors"
+                >
+                  {isLinking ? 'Redirecting...' : `Link ${oidcProviderName}`}
+                </button>
+              )}
+              {oidcLinked && !hasPassword && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Set a password below before unlinking, or you would be locked out.
+                </p>
+              )}
+            </div>
+          )}
 
           {passwordSuccess && (
             <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
@@ -435,23 +550,25 @@ export default function ProfilePage() {
           )}
 
           <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div>
-              <label
-                htmlFor="currentPassword"
-                className="block text-xs text-gray-500 dark:text-gray-400 mb-1"
-              >
-                Current Password
-              </label>
-              <input
-                id="currentPassword"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter current password"
-              />
-            </div>
+            {hasPassword && (
+              <div>
+                <label
+                  htmlFor="currentPassword"
+                  className="block text-xs text-gray-500 dark:text-gray-400 mb-1"
+                >
+                  Current Password
+                </label>
+                <input
+                  id="currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter current password"
+                />
+              </div>
+            )}
 
             <div>
               <label
@@ -505,9 +622,12 @@ export default function ProfilePage() {
               disabled={isChangingPassword || !canChangePassword}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-md transition-colors"
             >
-              {isChangingPassword ? 'Changing Password...' : 'Change Password'}
+              {isChangingPassword
+                ? hasPassword ? 'Changing Password...' : 'Setting Password...'
+                : hasPassword ? 'Change Password' : 'Set Password'}
             </button>
           </form>
+        </div>
         </div>
       </div>
     </div>

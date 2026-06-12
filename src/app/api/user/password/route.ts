@@ -4,7 +4,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/db'
 
 interface PasswordChangeBody {
-  currentPassword: string
+  currentPassword?: string
   newPassword: string
 }
 
@@ -30,9 +30,9 @@ export async function POST(request: Request) {
   }
 
   // Validate required fields
-  if (!body.currentPassword || !body.newPassword) {
+  if (!body.newPassword) {
     return NextResponse.json(
-      { error: 'Current password and new password are required' },
+      { error: 'New password is required' },
       { status: 400 }
     )
   }
@@ -45,28 +45,37 @@ export async function POST(request: Request) {
     )
   }
 
-  // Get user from database to verify current password
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { passwordHash: true }
   })
 
-  if (!user || !user.passwordHash) {
+  if (!user) {
     return NextResponse.json(
       { error: 'User not found' },
       { status: 404 }
     )
   }
 
-  // Verify current password
-  const passwordMatch = await bcrypt.compare(body.currentPassword, user.passwordHash)
+  if (user.passwordHash) {
+    // Existing password must be verified before changing it
+    if (!body.currentPassword) {
+      return NextResponse.json(
+        { error: 'Current password is required' },
+        { status: 400 }
+      )
+    }
 
-  if (!passwordMatch) {
-    return NextResponse.json(
-      { error: 'Current password is incorrect' },
-      { status: 400 }
-    )
+    const passwordMatch = await bcrypt.compare(body.currentPassword, user.passwordHash)
+
+    if (!passwordMatch) {
+      return NextResponse.json(
+        { error: 'Current password is incorrect' },
+        { status: 400 }
+      )
+    }
   }
+  // OIDC-only accounts (no password yet) may set an initial password directly.
 
   // Hash new password with 10 salt rounds (same as registration)
   const newPasswordHash = await bcrypt.hash(body.newPassword, 10)

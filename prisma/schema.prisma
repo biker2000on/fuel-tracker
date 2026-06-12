@@ -16,13 +16,17 @@ datasource db {
 model User {
   id           String       @id @default(cuid())
   email        String       @unique
-  passwordHash String
+  passwordHash String? // null for OIDC-only accounts
+  oidcSubject  String? // OIDC subject claim, set when linked to an identity provider
+  oidcIssuer   String? // OIDC issuer URL the subject belongs to
   name         String?
   defaultThousandths Float @default(0)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   memberships  Membership[]
   fillups      Fillup[]
+
+  @@unique([oidcIssuer, oidcSubject])
 }
 
 model Group {
@@ -44,6 +48,7 @@ model Vehicle {
   tankSize  Float?   // Gallons, optional
   fuelType  String   @default("regular") // regular, premium, diesel, e85
   photoUrl  String?  // Optional, for photo upload in Plan 02
+  retiredAt DateTime? // Set when vehicle is retired (hidden from fillup chooser)
   groupId   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

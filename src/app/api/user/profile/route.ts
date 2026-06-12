@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/db'
+import { isOidcConfigured, getOidcProviderName } from '@/lib/oidc'
 
 export async function GET() {
   const session = await auth()
@@ -19,7 +20,9 @@ export async function GET() {
       email: true,
       name: true,
       defaultThousandths: true,
-      createdAt: true
+      createdAt: true,
+      passwordHash: true,
+      oidcSubject: true
     }
   })
 
@@ -35,7 +38,11 @@ export async function GET() {
     email: user.email,
     name: user.name,
     defaultThousandths: user.defaultThousandths,
-    createdAt: user.createdAt.toISOString()
+    createdAt: user.createdAt.toISOString(),
+    hasPassword: Boolean(user.passwordHash),
+    oidcLinked: Boolean(user.oidcSubject),
+    oidcEnabled: isOidcConfigured(),
+    oidcProviderName: getOidcProviderName()
   })
 }
 
