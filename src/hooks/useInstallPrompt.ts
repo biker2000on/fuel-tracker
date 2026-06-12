@@ -35,7 +35,7 @@ export function useInstallPrompt(): UseInstallPromptReturn {
   useEffect(() => {
     // Detect iOS
     const checkIOS = () => {
-      return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream
     }
     setIsIOS(checkIOS())
 

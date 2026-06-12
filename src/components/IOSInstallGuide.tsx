@@ -21,7 +21,7 @@ export function IOSInstallGuide() {
           </div>
           <div className="flex-grow">
             <p className="text-gray-700 dark:text-slate-300">
-              Tap the <span className="font-semibold text-gray-900 dark:text-white underline">Share</span> button in Safari's toolbar.
+              Tap the <span className="font-semibold text-gray-900 dark:text-white underline">Share</span> button in Safari&apos;s toolbar.
             </p>
             <div className="mt-2 flex justify-center py-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg">
               <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
