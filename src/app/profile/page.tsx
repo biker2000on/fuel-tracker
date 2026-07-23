@@ -38,6 +38,20 @@ export default function ProfilePage() {
   const [oidcError, setOidcError] = useState<string | null>(null)
   const [isLinking, setIsLinking] = useState(false)
 
+  // API token state
+  interface ApiTokenInfo {
+    id: string
+    name: string
+    createdAt: string
+    lastUsedAt: string | null
+  }
+  const [apiTokens, setApiTokens] = useState<ApiTokenInfo[]>([])
+  const [newTokenName, setNewTokenName] = useState('')
+  const [createdToken, setCreatedToken] = useState<string | null>(null)
+  const [tokenError, setTokenError] = useState<string | null>(null)
+  const [isCreatingToken, setIsCreatingToken] = useState(false)
+  const [tokenCopied, setTokenCopied] = useState(false)
+
   // Password change state
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -73,6 +87,67 @@ export default function ProfilePage() {
         .finally(() => setIsLoadingProfile(false))
     }
   }, [status])
+
+  // Load API tokens
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetch('/api/user/tokens')
+        .then(res => res.ok ? res.json() : { tokens: [] })
+        .then(data => setApiTokens(data.tokens || []))
+        .catch(() => {})
+    }
+  }, [status])
+
+  const handleCreateToken = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTokenName.trim()) return
+    setIsCreatingToken(true)
+    setTokenError(null)
+    setCreatedToken(null)
+    try {
+      const res = await fetch('/api/user/tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newTokenName.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create token')
+      setCreatedToken(data.token)
+      setTokenCopied(false)
+      setNewTokenName('')
+      setApiTokens(prev => [
+        { id: data.id, name: data.name, createdAt: data.createdAt, lastUsedAt: null },
+        ...prev,
+      ])
+    } catch (err) {
+      setTokenError(err instanceof Error ? err.message : 'Failed to create token')
+    } finally {
+      setIsCreatingToken(false)
+    }
+  }
+
+  const handleRevokeToken = async (id: string) => {
+    setTokenError(null)
+    try {
+      const res = await fetch(`/api/user/tokens/${id}`, { method: 'DELETE' })
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to revoke token')
+      }
+      setApiTokens(prev => prev.filter(t => t.id !== id))
+    } catch (err) {
+      setTokenError(err instanceof Error ? err.message : 'Failed to revoke token')
+    }
+  }
+
+  const handleCopyToken = async () => {
+    if (!createdToken) return
+    try {
+      await navigator.clipboard.writeText(createdToken)
+      setTokenCopied(true)
+      setTimeout(() => setTokenCopied(false), 3000)
+    } catch {}
+  }
 
   // Surface the result of a completed OIDC link flow (?oidc=linked)
   useEffect(() => {
@@ -479,6 +554,95 @@ export default function ProfilePage() {
               <span className="text-sm text-gray-500 dark:text-gray-400">per gallon</span>
             </div>
           </div>
+        </div>
+
+        {/* API Access Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-4 lg:mt-0">
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
+            API Access
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Tokens grant read-only access to your vehicles and fillups via{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">/api/v1</code>{' '}
+            (for example to link gnucash-web). Send as{' '}
+            <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">Authorization: Bearer &lt;token&gt;</code>.
+          </p>
+
+          {tokenError && (
+            <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-xs text-red-700 dark:text-red-300">{tokenError}</p>
+            </div>
+          )}
+
+          {createdToken && (
+            <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md">
+              <p className="text-xs font-medium text-green-800 dark:text-green-200 mb-2">
+                Token created - copy it now, it will not be shown again:
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-white dark:bg-gray-900 border border-green-200 dark:border-green-800 rounded px-2 py-1.5 break-all select-all">
+                  {createdToken}
+                </code>
+                <button
+                  type="button"
+                  onClick={handleCopyToken}
+                  className="px-3 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors flex-shrink-0"
+                >
+                  {tokenCopied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleCreateToken} className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newTokenName}
+              onChange={(e) => setNewTokenName(e.target.value)}
+              placeholder="Token name (e.g. gnucash-web)"
+              maxLength={50}
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <button
+              type="submit"
+              disabled={isCreatingToken || !newTokenName.trim()}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-md transition-colors"
+            >
+              {isCreatingToken ? 'Creating...' : 'Create'}
+            </button>
+          </form>
+
+          {apiTokens.length === 0 ? (
+            <p className="text-sm text-gray-400 dark:text-gray-500 italic">No tokens yet</p>
+          ) : (
+            <div className="space-y-2">
+              {apiTokens.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-md"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {t.name}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Created {new Date(t.createdAt).toLocaleDateString()}
+                      {t.lastUsedAt
+                        ? ` - last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
+                        : ' - never used'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRevokeToken(t.id)}
+                    className="ml-3 px-3 py-1 text-xs font-medium bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 rounded transition-colors flex-shrink-0"
+                  >
+                    Revoke
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Security Section */}

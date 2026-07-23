@@ -25,8 +25,22 @@ model User {
   updatedAt    DateTime     @updatedAt
   memberships  Membership[]
   fillups      Fillup[]
+  apiTokens    ApiToken[]
 
   @@unique([oidcIssuer, oidcSubject])
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  name       String // User-facing label, e.g. "gnucash-web"
+  tokenHash  String    @unique // sha256 hex of the plaintext token
+  userId     String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Group {
