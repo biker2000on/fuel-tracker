@@ -29,17 +29,32 @@ Each entry has either a content-hash in the filename or a `revision` hash, so Se
 
 These are cached when first accessed, then served from cache on subsequent requests:
 
-| Route Pattern          | Strategy     | Cache Name       | Timeout | Notes                                  |
-| ---------------------- | ------------ | ---------------- | ------- | -------------------------------------- |
-| Scripts, styles, fonts | CacheFirst   | `static-assets`  | --      | Cached indefinitely until SW updates   |
-| Images                 | CacheFirst   | `images`         | --      | Cached indefinitely until SW updates   |
-| GET `/api/vehicles`    | NetworkFirst | `api-vehicles`   | 3s      | Try network, fall back to cache        |
-| GET `/api/dashboard`   | NetworkFirst | `api-dashboard`  | 3s      | Try network, fall back to cache        |
-| GET `/api/fillups*`    | NetworkFirst | `api-fillups`    | 3s      | Try network, fall back to cache        |
-| GET `/api/analytics`   | NetworkFirst | `api-analytics`  | 5s      | Try network, fall back to cache        |
-| POST/PUT/DELETE `/api` | NetworkOnly  | --               | --      | Never cached (writes go through queue) |
-| Next.js static JS      | CacheFirst   | (default cache)  | --      | From Serwist `defaultCache`            |
-| HTML / RSC payloads    | NetworkFirst | (default cache)  | --      | From Serwist `defaultCache`            |
+| Route Pattern            | Strategy     | Cache Name         | Timeout | Notes                                       |
+| ------------------------ | ------------ | ------------------ | ------- | ------------------------------------------- |
+| Scripts, styles, fonts   | CacheFirst   | `static-assets`    | --      | Cached indefinitely until SW updates        |
+| Images                   | CacheFirst   | `images`           | --      | Cached indefinitely until SW updates        |
+| GET `/api/auth/session`  | NetworkFirst | `api-auth-session` | 3s      | So useSession() resolves offline            |
+| Other `/api/auth/*`      | NetworkOnly  | --                 | --      | csrf/signin/callback never cached           |
+| POST/PUT/DELETE `/api`   | NetworkOnly  | --                 | --      | Never cached (writes go through queue)      |
+| All other GET `/api/*`   | NetworkFirst | `api-get`          | 4s      | Every screen has offline data (30-day TTL)  |
+| Page navigations (HTML)  | NetworkFirst | `pages`            | 4s      | `ignoreSearch: true`; 30-day TTL            |
+| Next.js static JS        | CacheFirst   | (default cache)    | --      | From Serwist `defaultCache`                 |
+| RSC payloads             | NetworkFirst | (default cache)    | --      | From Serwist `defaultCache`                 |
+
+### Proactive Cache Warming
+
+The SW doesn't just wait for visits -- it warms core routes so the entire app
+works offline even for pages never visited under the current SW:
+
+- **When**: on SW `activate` (every deploy) and whenever the app posts a
+  `WARM_CACHE` message (sent by `src/components/CacheWarmer.tsx` once the user
+  is authenticated and online). Throttled to once per 10 minutes.
+- **What**: `/`, `/dashboard`, `/fillups/new`, `/vehicles`, `/analytics`,
+  `/profile`, `/groups` into `pages`; `/api/vehicles`, `/api/dashboard`,
+  `/api/user/profile` into `api-get`; `/api/auth/session` into
+  `api-auth-session`.
+- **Guard**: responses that redirect (e.g. to `/login`) or error are never
+  cached, so a signed-out shell can't poison the cache.
 
 Additionally, the **application layer** caches structured data in IndexedDB:
 - Vehicle list

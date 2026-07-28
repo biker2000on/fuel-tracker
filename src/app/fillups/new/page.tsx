@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useOfflineQueue } from '@/hooks/useOfflineQueue'
 import { reverseGeocode, formatLocation, GeocodedLocation } from '@/lib/geocoding'
+import { cacheVehicles, getCachedVehicles } from '@/lib/offlineDb'
 
 interface Vehicle {
   id: string
@@ -28,6 +29,7 @@ function NewFillupForm() {
   // Vehicles state
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(true)
+  const [usingCachedVehicles, setUsingCachedVehicles] = useState(false)
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
 
   // Form state
@@ -66,6 +68,23 @@ function NewFillupForm() {
   const [successMessage, setSuccessMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Load vehicles from the IndexedDB cache (offline fallback).
+  // Returns true if any vehicles were loaded.
+  const loadCachedVehicles = useCallback(async (): Promise<boolean> => {
+    try {
+      const cached = await getCachedVehicles()
+      const active = (cached || []).filter(v => !v.retiredAt)
+      if (active.length > 0) {
+        setVehicles(active)
+        setUsingCachedVehicles(true)
+        return true
+      }
+    } catch {
+      // fall through to false
+    }
+    return false
+  }, [])
+
   // Fetch vehicles on mount
   useEffect(() => {
     if (status === 'unauthenticated' && isOnline && (typeof navigator === 'undefined' || navigator.onLine)) {
@@ -73,23 +92,25 @@ function NewFillupForm() {
       return
     }
 
+    if (status === 'unauthenticated' && !isOnline) {
+      // Offline without a resolvable session: still let the user log a
+      // fillup against cached vehicles. It queues locally and syncs once
+      // they're back online and signed in.
+      loadCachedVehicles().finally(() => setIsLoadingVehicles(false))
+      if (locationSupported) {
+        requestLocation()
+      }
+      return
+    }
+
     if (status === 'authenticated') {
       fetchVehicles()
-      // Fetch thousandths preference
-      fetch('/api/user/profile')
-        .then(res => res.json())
-        .then(data => {
-          if (data.defaultThousandths !== undefined) {
-            setDefaultThousandths(data.defaultThousandths)
-          }
-        })
-        .catch(() => {})
       // Start location request immediately
       if (locationSupported) {
         requestLocation()
       }
     }
-  }, [status, router, locationSupported, requestLocation])
+  }, [status, router, isOnline, loadCachedVehicles, locationSupported, requestLocation])
 
   // Handle preselected vehicle or auto-select if only one
   useEffect(() => {
@@ -129,13 +150,22 @@ function NewFillupForm() {
   async function fetchVehicles() {
     try {
       const response = await fetch('/api/vehicles')
-      if (response.ok) {
-        const data = await response.json()
-        // Retired vehicles are excluded from the fillup chooser
-        setVehicles(data.vehicles.filter((v: Vehicle) => !v.retiredAt))
+      if (!response.ok) {
+        throw new Error(`Failed to fetch vehicles: ${response.status}`)
       }
+      const data = await response.json()
+      // Retired vehicles are excluded from the fillup chooser
+      setVehicles(data.vehicles.filter((v: Vehicle) => !v.retiredAt))
+      setUsingCachedVehicles(false)
+      // Keep the offline cache fresh so this page works with no network.
+      // The API response shape matches CachedVehicle exactly.
+      cacheVehicles(data.vehicles).catch(() => {})
     } catch {
-      setError('Failed to load vehicles')
+      // Network unavailable (or server error): fall back to cached vehicles
+      const usedCache = await loadCachedVehicles()
+      if (!usedCache) {
+        setError('Failed to load vehicles')
+      }
     } finally {
       setIsLoadingVehicles(false)
     }
@@ -293,20 +323,44 @@ function NewFillupForm() {
             </Link>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              No Vehicles Available
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Add a vehicle before logging fillups.
-            </p>
-            <Link
-              href="/vehicles/new"
-              className="inline-block py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition-colors"
-            >
-              Add Vehicle
-            </Link>
-          </div>
+          {!isOnline || error ? (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                {!isOnline ? "You're Offline" : 'Could Not Load Vehicles'}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                {!isOnline
+                  ? 'No vehicles are cached on this device yet. Open the app once while connected and your vehicles will be available offline.'
+                  : 'Something went wrong loading your vehicles. Check your connection and try again.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  setIsLoadingVehicles(true)
+                  fetchVehicles()
+                }}
+                className="inline-block py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                No Vehicles Available
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Add a vehicle before logging fillups.
+              </p>
+              <Link
+                href="/vehicles/new"
+                className="inline-block py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md shadow-sm transition-colors"
+              >
+                Add Vehicle
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -336,6 +390,11 @@ function NewFillupForm() {
               </span>
             )}
           </div>
+          {usingCachedVehicles && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Showing saved vehicles - fillups will sync when you reconnect
+            </p>
+          )}
           {/* Pending sync count */}
           {pendingCount > 0 && (
             <div className="mt-2 flex items-center gap-2">
@@ -372,7 +431,7 @@ function NewFillupForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form id="fillup-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Vehicle Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

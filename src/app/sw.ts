@@ -76,11 +76,14 @@ const runtimeCaching = [
   },
   // Page navigations - NetworkFirst so previously visited pages keep working
   // offline; the /~offline fallback only kicks in for never-visited pages.
+  // ignoreSearch lets e.g. /fillups/new?vehicleId=x hit the warmed
+  // /fillups/new entry.
   {
     matcher: ({ request }: { request: Request }) => request.destination === "document",
     handler: new NetworkFirst({
       cacheName: "pages",
       networkTimeoutSeconds: 4,
+      matchOptions: { ignoreSearch: true },
       plugins: [
         new ExpirationPlugin({
           maxEntries: 50,
@@ -92,6 +95,61 @@ const runtimeCaching = [
   // Include default cache for other requests (RSC payloads, etc.)
   ...defaultCache,
 ];
+
+// Core routes warmed into the runtime caches so the whole app works offline
+// even for pages the user has never visited under the current service worker.
+// Without this, a fresh SW (every deploy) starts with empty page/API caches
+// and any un-visited route dead-ends at /~offline.
+const CORE_PAGES = [
+  "/",
+  "/dashboard",
+  "/fillups/new",
+  "/vehicles",
+  "/analytics",
+  "/profile",
+  "/groups",
+];
+const CORE_API_GETS = ["/api/vehicles", "/api/dashboard", "/api/user/profile"];
+
+async function warmInto(cacheName: string, urls: string[]): Promise<void> {
+  const cache = await caches.open(cacheName);
+  await Promise.allSettled(
+    urls.map(async (url) => {
+      const response = await fetch(url, { credentials: "same-origin" });
+      // Skip auth redirects (e.g. to /login) and error responses so we never
+      // poison the cache with a signed-out shell.
+      if (response.ok && !response.redirected) {
+        await cache.put(url, response);
+      }
+    }),
+  );
+}
+
+let lastWarmedAt = 0;
+const WARM_INTERVAL_MS = 10 * 60 * 1000;
+
+async function warmCache(): Promise<void> {
+  const now = Date.now();
+  if (now - lastWarmedAt < WARM_INTERVAL_MS) return;
+  lastWarmedAt = now;
+  await Promise.allSettled([
+    warmInto("pages", CORE_PAGES),
+    warmInto("api-get", CORE_API_GETS),
+    warmInto("api-auth-session", ["/api/auth/session"]),
+  ]);
+}
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(warmCache());
+});
+
+// The app posts WARM_CACHE once the user is authenticated and online, so the
+// warmed pages/data reflect a signed-in session.
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "WARM_CACHE") {
+    event.waitUntil(warmCache());
+  }
+});
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,

@@ -6,6 +6,7 @@ import { OfflineProvider, useOffline } from '@/contexts/OfflineContext'
 import { ConnectionToast } from '@/components/ConnectionToast'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { ConflictResolver } from '@/components/ConflictResolver'
+import { CacheWarmer } from '@/components/CacheWarmer'
 
 function OfflineUIComponents() {
   const { activeConflict, handleConflictResolution, dismissConflict } = useOffline()
@@ -32,6 +33,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <OfflineProvider>
           {children}
           <OfflineUIComponents />
+          <CacheWarmer />
         </OfflineProvider>
       </ThemeProvider>
     </SessionProvider>
