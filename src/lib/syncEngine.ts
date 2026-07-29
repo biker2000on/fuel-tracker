@@ -4,6 +4,7 @@
  */
 
 import { getQueue, removeFromQueue, type PendingFillup } from './offlineDb'
+import { reverseGeocode } from './geocoding'
 
 export interface SyncResult {
   success: boolean
@@ -200,6 +201,28 @@ export async function syncSingleFillup(
   let lastError: string | undefined
   let retryCount = 0
 
+  // Fillups queued offline have coordinates but no city/state (reverse
+  // geocoding needs the network). Enrich now that we're online, best-effort:
+  // reverseGeocode never throws and returns nulls on failure.
+  let payload = pending.data
+  if (
+    payload.latitude != null &&
+    payload.longitude != null &&
+    !payload.city &&
+    !payload.state &&
+    !payload.country
+  ) {
+    const location = await reverseGeocode(payload.latitude, payload.longitude)
+    if (location.city || location.state || location.country) {
+      payload = {
+        ...payload,
+        city: location.city,
+        state: location.state,
+        country: location.country
+      }
+    }
+  }
+
   // Check for conflicts before syncing (unless explicitly disabled)
   if (opts.checkConflicts) {
     const conflict = await checkForConflicts(pending)
@@ -219,7 +242,7 @@ export async function syncSingleFillup(
       const response = await fetch('/api/fillups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pending.data)
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {

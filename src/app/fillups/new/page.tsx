@@ -40,8 +40,11 @@ function NewFillupForm() {
   const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState('')
   const [date, setDate] = useState(() => {
+    // Format local time for datetime-local input (toISOString alone is UTC,
+    // which stamps evening fillups with tomorrow's date)
     const now = new Date()
-    return now.toISOString().slice(0, 16) // Format for datetime-local input
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    return local.toISOString().slice(0, 16)
   })
   const [showDatePicker, setShowDatePicker] = useState(false)
 
